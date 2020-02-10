@@ -1,0 +1,14 @@
+{
+  "name": "invoicing-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rechnungen - small invoicing tool",
+  "workspaces": [
+    "api"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "test": "npm test -w api"
+  },
+  "license": "MIT"
+}
