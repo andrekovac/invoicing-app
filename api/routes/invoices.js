@@ -23,7 +23,11 @@ function checkItems(items) {
 }
 
 router.get('/', function (req, res) {
-  res.json(invoices.list(req.accountId, { status: req.query.status, customer_id: req.query.customer_id }));
+  res.json(invoices.list(req.accountId, {
+    status: req.query.status,
+    customer_id: req.query.customer_id,
+    q: req.query.q
+  }));
 });
 
 // totals for the form while typing
@@ -39,6 +43,13 @@ router.post('/preview', function (req, res) {
     total_tax: money.round2(gross - net),
     total_gross: gross
   });
+});
+
+// lookup by number, e.g. from the bank statement
+router.get('/by-number/:number', function (req, res) {
+  var inv = invoices.findByNumber(req.accountId, req.params.number);
+  if (!inv) return res.status(404).json({ error: 'not found' });
+  res.json(invoices.getById(inv.id));
 });
 
 router.get('/:id', function (req, res) {
@@ -64,12 +75,41 @@ router.put('/:id', function (req, res) {
   var id = Number(req.params.id);
   var inv = invoices.findById(id);
   if (!inv) return res.status(404).json({ error: 'not found' });
+  if (inv.status !== 'draft') return res.status(409).json({ error: 'gestellte Rechnungen können nicht geändert werden' });
   var body = req.body || {};
   if (body.items) {
     var err = checkItems(body.items);
     if (err) return res.status(400).json({ error: err });
   }
   res.json(invoices.update(id, body));
+});
+
+router.post('/:id/issue', function (req, res, next) {
+  var id = Number(req.params.id);
+  var inv = invoices.findById(id);
+  if (!inv) return res.status(404).json({ error: 'not found' });
+  if (!invoices.itemsFor(id).length) return res.status(400).json({ error: 'Rechnung hat keine Positionen' });
+  try {
+    res.json(invoices.issue(id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/paid', function (req, res) {
+  var id = Number(req.params.id);
+  var inv = invoices.findById(id);
+  if (!inv) return res.status(404).json({ error: 'not found' });
+  if (inv.status !== 'issued') return res.status(409).json({ error: 'nur gestellte Rechnungen können bezahlt werden' });
+  res.json(invoices.setStatus(id, 'paid'));
+});
+
+router.post('/:id/cancel', function (req, res) {
+  var id = Number(req.params.id);
+  var inv = invoices.findById(id);
+  if (!inv) return res.status(404).json({ error: 'not found' });
+  if (inv.status === 'cancelled') return res.status(409).json({ error: 'schon storniert' });
+  res.json(invoices.setStatus(id, 'cancelled'));
 });
 
 router.delete('/:id', function (req, res) {

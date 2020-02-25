@@ -29,10 +29,9 @@ app.use(function (err, req, res, next) {
 });
 
 if (require.main === module) {
-  var conn = db.open();
-  if (!conn.prepare('SELECT id FROM accounts WHERE id = 1').get()) {
-    conn.prepare("INSERT INTO accounts (id, name) VALUES (1, 'Agentur Brandt')").run();
-  }
+  db.open();
+  // fresh checkout: no db file yet, fill it with demo data
+  if (db.wasCreated()) require('./seed/seed').seed();
   app.listen(PORT, function () {
     console.log('api on http://localhost:' + PORT);
   });

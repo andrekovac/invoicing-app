@@ -1,0 +1,66 @@
+// demo data for development. run via `npm run db:reset`
+const db = require('../db');
+const invoices = require('../services/invoices');
+const customers = require('../services/customers');
+
+var CUSTOMERS = [
+  { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
+  { name: 'Schulz Immobilien GmbH', street: 'Poppelsdorfer Allee 8', zip: '53115', city: 'Bonn', email: 'buero@schulz-immobilien.example' },
+  { name: 'Hofmann Logistik GmbH', street: 'Industriestr. 112', zip: '51373', city: 'Leverkusen', email: 'rechnung@hofmann-logistik.example' },
+  { name: 'Praxis Dr. Weber', street: 'Aachener Str. 220', zip: '50931', city: 'Köln', email: 'praxis@dr-weber.example' },
+  { name: 'Café Rosenrot', street: 'Kasernenstr. 6', zip: '40213', city: 'Düsseldorf', email: 'hallo@cafe-rosenrot.example' }
+];
+
+// [customer index, issue date, status, vat, items]
+var INVOICES = [
+  [0, '2020-01-14', 'paid', 0.19, [['Website Relaunch, Konzept', 1, 1450], ['Fotografie Produkte (halber Tag)', 1, 380]]],
+  [1, '2020-01-28', 'paid', 0.19, [['Exposé Vorlage InDesign', 1, 640], ['Druckdaten Aufbereitung', 3, 65]]],
+  [2, '2020-02-03', 'paid', 0.19, [['Wartung Website Februar', 1, 120], ['Hosting Q1', 3, 14.9]]],
+  [3, '2020-02-11', 'issued', 0.19, [['Online Terminbuchung Einrichtung', 1, 890], ['Schulung Praxisteam', 2, 95]]],
+  [4, '2020-02-17', 'issued', 0.19, [['Speisekarte Layout', 1, 280], ['Speisekarte Druck 200 Stk.', 200, 1.35]]],
+  [0, '2020-02-20', 'draft', 0.19, [['Flyer Ostern', 1, 190]]],
+  [2, '2020-02-24', 'draft', 0.19, [['Wartung Website März', 1, 120]]]
+];
+
+function addDays(d, n) {
+  var x = new Date(d + 'T12:00:00');
+  x.setDate(x.getDate() + n);
+  return x.toISOString().slice(0, 10);
+}
+
+function seed() {
+  var conn = db.open();
+  var acc = conn.prepare('SELECT id FROM accounts WHERE id = 1').get();
+  if (!acc) {
+    conn.prepare('INSERT INTO accounts (id, name, street, zip, city, iban, tax_number) VALUES (1, ?, ?, ?, ?, ?, ?)')
+      .run('Agentur Brandt', 'Hansaring 12', '50670', 'Köln', 'DE02 1001 0010 0123 4567 89', '214/5678/1234');
+  }
+
+  var ids = CUSTOMERS.map(function (c) {
+    return customers.create(1, c).id;
+  });
+
+  INVOICES.forEach(function (row) {
+    var inv = invoices.create(1, {
+      customer_id: ids[row[0]],
+      issue_date: row[1],
+      vat_rate: row[3],
+      items: row[4].map(function (it) {
+        return { description: it[0], quantity: it[1], unit_price: it[2] };
+      })
+    });
+    if (row[2] !== 'draft') {
+      invoices.update(inv.id, { due_date: addDays(row[1], 14) });
+      invoices.issue(inv.id);
+      if (row[2] !== 'issued') invoices.setStatus(inv.id, row[2]);
+    }
+  });
+
+  console.log('[seed] ' + CUSTOMERS.length + ' customers, ' + INVOICES.length + ' invoices');
+}
+
+if (require.main === module) {
+  seed();
+}
+
+module.exports = { seed: seed };

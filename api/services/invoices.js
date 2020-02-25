@@ -46,6 +46,10 @@ function list(accountId, opts) {
     sql += ' AND i.status = ?';
     args.push(opts.status);
   }
+  if (opts.q) {
+    sql += ' AND (i.number LIKE ? OR c.name LIKE ?)';
+    args.push('%' + opts.q + '%', '%' + opts.q + '%');
+  }
   if (opts.customer_id) {
     sql += ' AND i.customer_id = ?';
     args.push(Number(opts.customer_id));
@@ -107,6 +111,53 @@ function update(id, data) {
   return getById(id);
 }
 
+function pad(n, len) {
+  var s = String(n);
+  while (s.length < len) s = '0' + s;
+  return s;
+}
+
+// RE-2020-0001, counts per account and year
+function nextNumber(accountId, year) {
+  var prefix = 'RE-' + year + '-';
+  var last = conn().prepare('SELECT number FROM invoices WHERE account_id = ? AND number LIKE ? ORDER BY number DESC LIMIT 1')
+    .get(accountId, prefix + '%');
+  var n = last ? parseInt(last.number.slice(prefix.length), 10) + 1 : 1;
+  return prefix + pad(n, 4);
+}
+
+function findByNumber(accountId, number) {
+  return conn().prepare('SELECT * FROM invoices WHERE account_id = ? AND number = ?').get(accountId, number);
+}
+
+function addDays(dateStr, days) {
+  var d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// draft -> issued. number is given out here, not on create, so drafts don't burn numbers
+function issue(id) {
+  var inv = findById(id);
+  if (!inv) return null;
+  if (inv.status !== 'draft') {
+    var err = new Error('Rechnung ist schon gestellt');
+    err.status = 409;
+    throw err;
+  }
+  var issueDate = inv.issue_date || new Date().toISOString().slice(0, 10);
+  var dueDate = inv.due_date || addDays(issueDate, 14);
+  var number = nextNumber(inv.account_id, issueDate.slice(0, 4));
+  conn().prepare("UPDATE invoices SET status = 'issued', number = ?, issue_date = ?, due_date = ?, updated_at = ? WHERE id = ?")
+    .run(number, issueDate, dueDate, now(), id);
+  return getById(id);
+}
+
+function setStatus(id, status) {
+  conn().prepare('UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?').run(status, now(), id);
+  return getById(id);
+}
+
 function remove(id) {
   conn().prepare('DELETE FROM invoices WHERE id = ?').run(id);
 }
@@ -117,6 +168,10 @@ module.exports = {
   getById: getById,
   itemsFor: itemsFor,
   list: list,
+  nextNumber: nextNumber,
+  findByNumber: findByNumber,
+  issue: issue,
+  setStatus: setStatus,
   create: create,
   update: update,
   remove: remove
