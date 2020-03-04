@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Rechnungen - Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Rechnungen</h1>
+    <nav>
+      <a href="#/invoices">Rechnungen</a>
+      <a href="#/customers">Kunden</a>
+    </nav>
+  </header>
+
+  <main>
+    <div id="msg" class="msg hidden"></div>
+
+    <!-- invoice list -->
+    <section id="view-invoices" class="view hidden">
+      <div class="toolbar">
+        <input id="inv-q" type="search" placeholder="Nummer oder Kunde">
+        <select id="inv-status">
+          <option value="">Alle</option>
+          <option value="draft">Entwurf</option>
+          <option value="issued">Gestellt</option>
+          <option value="paid">Bezahlt</option>
+          <option value="cancelled">Storniert</option>
+        </select>
+        <button id="inv-new">Neue Rechnung</button>
+      </div>
+      <table class="list">
+        <thead>
+          <tr><th>Nummer</th><th>Kunde</th><th>Datum</th><th>Fällig</th><th>Status</th><th class="num">Brutto</th></tr>
+        </thead>
+        <tbody id="inv-rows"></tbody>
+      </table>
+    </section>
+
+    <!-- invoice edit -->
+    <section id="view-invoice" class="view hidden">
+      <h2 id="inv-title">Rechnung</h2>
+      <form id="inv-form">
+        <div class="row">
+          <label>Kunde <select name="customer_id" id="inv-customer"></select></label>
+          <label>Steuersatz
+            <select name="vat_rate">
+              <option value="0.19">19 %</option>
+              <option value="0.07">7 %</option>
+              <option value="0">0 %</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Rechnungsdatum <input type="date" name="issue_date"></label>
+          <label>Fällig am <input type="date" name="due_date"></label>
+        </div>
+
+        <table class="items">
+          <thead>
+            <tr><th>Beschreibung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Summe</th><th></th></tr>
+          </thead>
+          <tbody id="item-rows"></tbody>
+        </table>
+        <button type="button" id="item-add">+ Position</button>
+
+        <table class="totals">
+          <tr><td>Netto</td><td class="num" id="t-net"></td></tr>
+          <tr><td>USt.</td><td class="num" id="t-tax"></td></tr>
+          <tr class="sum"><td>Brutto</td><td class="num" id="t-gross"></td></tr>
+        </table>
+
+        <div class="actions">
+          <button type="submit" id="inv-save">Speichern</button>
+          <button type="button" id="inv-issue">Rechnung stellen</button>
+          <button type="button" id="inv-paid">Als bezahlt markieren</button>
+          <button type="button" id="inv-cancel" class="danger">Stornieren</button>
+          <button type="button" id="inv-delete" class="danger">Löschen</button>
+          <a href="#/invoices">Zurück</a>
+        </div>
+      </form>
+    </section>
+
+    <!-- customers -->
+    <section id="view-customers" class="view hidden">
+      <div class="toolbar">
+        <input id="cust-q" type="search" placeholder="Name oder Ort">
+        <button id="cust-new">Neuer Kunde</button>
+      </div>
+      <table class="list">
+        <thead>
+          <tr><th>Name</th><th>Ort</th><th>E-Mail</th></tr>
+        </thead>
+        <tbody id="cust-rows"></tbody>
+      </table>
+    </section>
+
+    <section id="view-customer" class="view hidden">
+      <h2 id="cust-title">Kunde</h2>
+      <form id="cust-form">
+        <label>Name <input name="name" required></label>
+        <label>Straße <input name="street"></label>
+        <div class="row">
+          <label>PLZ <input name="zip" size="6"></label>
+          <label>Ort <input name="city"></label>
+        </div>
+        <label>E-Mail <input name="email" type="email"></label>
+        <div class="actions">
+          <button type="submit">Speichern</button>
+          <button type="button" id="cust-delete" class="danger">Löschen</button>
+          <a href="#/customers">Zurück</a>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #222;
+  background: #f4f4f4;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: #2b4c7e;
+  color: #fff;
+}
+
+header h1 { font-size: 18px; margin: 0; }
+header nav a { color: #fff; margin-left: 16px; text-decoration: none; }
+header nav a:hover { text-decoration: underline; }
+
+main {
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+}
+
+.hidden { display: none !important; }
+
+.toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+.toolbar input[type=search] { flex: 1; }
+
+input, select, button {
+  font: inherit;
+  padding: 4px 6px;
+}
+
+button {
+  background: #2b4c7e;
+  color: #fff;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+button:hover { background: #1d3557; }
+button.danger { background: #b23b3b; }
+button[disabled] { background: #999; cursor: default; }
+
+table { border-collapse: collapse; width: 100%; }
+table.list td, table.list th { border-bottom: 1px solid #eee; padding: 6px 4px; text-align: left; }
+table.list tbody tr { cursor: pointer; }
+table.list tbody tr:hover { background: #f0f5ff; }
+.num { text-align: right !important; }
+
+table.items { margin: 16px 0 8px; }
+table.items td { padding: 2px; }
+table.items input { width: 100%; }
+table.items input.qty { width: 70px; text-align: right; }
+table.items input.price { width: 110px; text-align: right; }
+
+table.totals { width: 280px; margin: 16px 0 0 auto; }
+table.totals td { padding: 3px 4px; }
+table.totals tr.sum td { border-top: 2px solid #222; font-weight: bold; }
+
+form label { display: block; margin: 8px 0; }
+form label input, form label select { display: block; margin-top: 2px; min-width: 240px; }
+.row { display: flex; gap: 20px; }
+
+.actions { margin-top: 20px; display: flex; gap: 8px; align-items: center; }
+
+.msg { padding: 8px 12px; margin-bottom: 12px; border-radius: 3px; background: #e7f4e4; border: 1px solid #9c9; }
+.msg.error { background: #fbeaea; border-color: #d99; }
+
+.status { padding: 1px 6px; border-radius: 8px; font-size: 12px; background: #eee; }
+.status-issued { background: #fff3cd; }
+.status-paid { background: #d4edda; }
+.status-cancelled { background: #f8d7da; text-decoration: line-through; }

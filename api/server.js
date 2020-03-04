@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const db = require('./db');
 
@@ -10,6 +11,11 @@ app.use(express.json());
 app.use(function (req, res, next) {
   req.accountId = 1;
   next();
+});
+
+app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+app.get('/', function (req, res) {
+  res.redirect('/admin/');
 });
 
 app.get('/api/health', function (req, res) {
