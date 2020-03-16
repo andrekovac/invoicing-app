@@ -3,6 +3,8 @@ const invoices = require('../services/invoices');
 const customers = require('../services/customers');
 const pricing = require('../lib/pricing');
 const money = require('../lib/money');
+const pdf = require('../lib/pdf');
+const db = require('../db');
 
 const router = express.Router();
 
@@ -56,6 +58,16 @@ router.get('/:id', function (req, res) {
   var inv = invoices.getById(Number(req.params.id));
   if (!inv) return res.status(404).json({ error: 'not found' });
   res.json(inv);
+});
+
+router.get('/:id/pdf', function (req, res) {
+  var inv = invoices.getById(Number(req.params.id));
+  if (!inv) return res.status(404).json({ error: 'not found' });
+  var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(inv.account_id);
+  var name = (inv.number || 'entwurf-' + inv.id) + '.pdf';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="' + name + '"');
+  res.send(pdf.invoicePdf(inv, account));
 });
 
 router.post('/', function (req, res) {
