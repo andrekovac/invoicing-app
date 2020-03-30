@@ -7,7 +7,8 @@
     "start": "node --disable-warning=ExperimentalWarning server.js",
     "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
     "db:reset": "node --disable-warning=ExperimentalWarning scripts/reset-db.js",
-    "seed": "node --disable-warning=ExperimentalWarning seed/seed.js"
+    "seed": "node --disable-warning=ExperimentalWarning seed/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
   },
   "dependencies": {
     "express": "4.22.1"
