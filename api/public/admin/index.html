@@ -12,11 +12,21 @@
     <nav>
       <a href="#/invoices">Rechnungen</a>
       <a href="#/customers">Kunden</a>
+      <a href="#" id="logout">Abmelden</a>
     </nav>
   </header>
 
   <main>
     <div id="msg" class="msg hidden"></div>
+
+    <section id="view-login" class="view hidden">
+      <h2>Anmelden</h2>
+      <form id="login-form">
+        <label>E-Mail <input name="email" type="email" autocomplete="username" required></label>
+        <label>Passwort <input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="actions"><button type="submit">Anmelden</button></div>
+      </form>
+    </section>
 
     <!-- invoice list -->
     <section id="view-invoices" class="view hidden">

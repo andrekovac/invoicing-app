@@ -2,6 +2,7 @@
 const db = require('../db');
 const invoices = require('../services/invoices');
 const customers = require('../services/customers');
+const auth = require('../lib/auth');
 
 var CUSTOMERS = [
   { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
@@ -35,6 +36,10 @@ function seed() {
     conn.prepare('INSERT INTO accounts (id, name, street, zip, city, iban, tax_number) VALUES (1, ?, ?, ?, ?, ?, ?)')
       .run('Agentur Brandt', 'Hansaring 12', '50670', 'Köln', 'DE02 1001 0010 0123 4567 89', '214/5678/1234');
   }
+
+  var addUser = conn.prepare('INSERT INTO users (account_id, email, name, password_hash, role) VALUES (1, ?, ?, ?, ?)');
+  addUser.run('jonas@agentur-brandt.example', 'Jonas Brandt', auth.hashPasswordSync('rechnungen'), 'admin');
+  addUser.run('buero@agentur-brandt.example', 'Büro', auth.hashPasswordSync('rechnungen'), 'user');
 
   var ids = CUSTOMERS.map(function (c) {
     return customers.create(1, c).id;

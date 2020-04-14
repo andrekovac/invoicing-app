@@ -8,7 +8,8 @@
   var state = {
     invoice: null,
     customers: [],
-    customer: null
+    customer: null,
+    user: null
   };
 
   function $(id) { return document.getElementById(id); }
@@ -39,6 +40,10 @@
     return fetch(API + url, opts).then(function (res) {
       if (res.status === 204) return null;
       return res.json().then(function (data) {
+        if (res.status === 401 && url !== '/auth/login') {
+          state.user = null;
+          show('login');
+        }
         if (!res.ok) {
           var err = new Error(data.error || ('Fehler ' + res.status));
           err.status = res.status;
@@ -272,9 +277,30 @@
     }).catch(fail);
   }
 
+  // ---------- login ----------
+
+  function login(e) {
+    e.preventDefault();
+    var f = $('login-form');
+    api('POST', '/auth/login', { email: f.email.value, password: f.password.value }).then(function (user) {
+      state.user = user;
+      f.password.value = '';
+      route();
+    }).catch(fail);
+  }
+
+  function logout(e) {
+    e.preventDefault();
+    api('POST', '/auth/logout').then(function () {
+      state.user = null;
+      show('login');
+    }).catch(fail);
+  }
+
   // ---------- routing ----------
 
   function route() {
+    if (!state.user) return;
     var parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'customers' && parts[1]) return openCustomer(parts[1]);
     if (parts[0] === 'customers') { show('customers'); return loadCustomers(); }
@@ -327,7 +353,13 @@
     $('cust-form').addEventListener('submit', saveCustomer);
     $('cust-delete').addEventListener('click', deleteCustomer);
 
+    $('login-form').addEventListener('submit', login);
+    $('logout').addEventListener('click', logout);
+
     window.addEventListener('hashchange', route);
-    route();
+    api('GET', '/auth/me').then(function (user) {
+      state.user = user;
+      route();
+    }).catch(function () { show('login'); });
   });
 })();

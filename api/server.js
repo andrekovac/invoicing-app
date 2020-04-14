@@ -1,17 +1,14 @@
 const path = require('path');
 const express = require('express');
 const db = require('./db');
+const session = require('./lib/session');
 
 const PORT = process.env.PORT || 4730;
 
 const app = express();
 app.use(express.json());
 
-// only one account for now (the agency)
-app.use(function (req, res, next) {
-  req.accountId = 1;
-  next();
-});
+app.use(session.middleware);
 
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 app.get('/', function (req, res) {
@@ -22,6 +19,7 @@ app.get('/api/health', function (req, res) {
   res.json({ ok: true });
 });
 
+app.use('/api/v1/auth', require('./routes/auth'));
 app.use('/api/v1/customers', require('./routes/customers'));
 app.use('/api/v1/invoices', require('./routes/invoices'));
 

@@ -1,7 +1,9 @@
 const express = require('express');
 const customers = require('../services/customers');
+const auth = require('../lib/auth');
 
 const router = express.Router();
+router.use(auth.requireLogin);
 
 router.get('/', function (req, res) {
   res.json(customers.list(req.accountId, req.query.q));
