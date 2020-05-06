@@ -12,6 +12,7 @@
     <nav>
       <a href="#/invoices">Rechnungen</a>
       <a href="#/customers">Kunden</a>
+      <a href="#/settings" id="nav-settings">Einstellungen</a>
       <a href="#" id="logout">Abmelden</a>
     </nav>
   </header>
@@ -123,6 +124,43 @@
           <button type="button" id="cust-delete" class="danger">Löschen</button>
           <a href="#/customers">Zurück</a>
         </div>
+      </form>
+    </section>
+
+    <!-- settings (admin only) -->
+    <section id="view-settings" class="view hidden">
+      <h2>Firma</h2>
+      <form id="acc-form">
+        <label>Name <input name="name" required></label>
+        <label>Straße <input name="street"></label>
+        <div class="row">
+          <label>PLZ <input name="zip" size="6"></label>
+          <label>Ort <input name="city"></label>
+        </div>
+        <div class="row">
+          <label>IBAN <input name="iban"></label>
+          <label>Steuernummer <input name="tax_number"></label>
+        </div>
+        <div class="actions"><button type="submit">Speichern</button></div>
+      </form>
+
+      <h2>Benutzer</h2>
+      <table class="list">
+        <thead><tr><th>Name</th><th>E-Mail</th><th>Rolle</th><th></th></tr></thead>
+        <tbody id="user-rows"></tbody>
+      </table>
+      <form id="user-form">
+        <div class="row">
+          <label>Name <input name="name"></label>
+          <label>E-Mail <input name="email" type="email" required></label>
+        </div>
+        <div class="row">
+          <label>Passwort <input name="password" type="password" required minlength="8"></label>
+          <label>Rolle
+            <select name="role"><option value="user">Benutzer</option><option value="admin">Admin</option></select>
+          </label>
+        </div>
+        <div class="actions"><button type="submit">Benutzer anlegen</button></div>
       </form>
     </section>
   </main>

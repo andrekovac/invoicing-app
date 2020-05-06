@@ -277,6 +277,53 @@
     }).catch(fail);
   }
 
+  // ---------- settings ----------
+
+  var ACC_FIELDS = ['name', 'street', 'zip', 'city', 'iban', 'tax_number'];
+
+  function openSettings() {
+    show('settings');
+    api('GET', '/admin/account').then(function (acc) {
+      var f = $('acc-form');
+      ACC_FIELDS.forEach(function (k) { f[k].value = acc[k] || ''; });
+    }).catch(fail);
+    loadUsers();
+  }
+
+  function loadUsers() {
+    api('GET', '/admin/users').then(function (rows) {
+      $('user-rows').innerHTML = rows.map(function (u) {
+        return '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.email) + '</td><td>' + esc(u.role) + '</td>' +
+          '<td>' + (u.id === state.user.id ? '' : '<button type="button" class="danger" data-del="' + u.id + '">Löschen</button>') + '</td></tr>';
+      }).join('');
+    }).catch(fail);
+  }
+
+  function saveAccount(e) {
+    e.preventDefault();
+    var f = $('acc-form');
+    var data = {};
+    ACC_FIELDS.forEach(function (k) { data[k] = f[k].value.trim(); });
+    api('PUT', '/admin/account', data).then(function () { message('Gespeichert'); }).catch(fail);
+  }
+
+  function addUser(e) {
+    e.preventDefault();
+    var f = $('user-form');
+    api('POST', '/admin/users', { name: f.name.value, email: f.email.value, password: f.password.value, role: f.role.value })
+      .then(function () {
+        f.reset();
+        message('Benutzer angelegt');
+        loadUsers();
+      }).catch(fail);
+  }
+
+  function deleteUser(e) {
+    var id = e.target.getAttribute('data-del');
+    if (!id || !confirm('Benutzer löschen?')) return;
+    api('DELETE', '/admin/users/' + id).then(loadUsers).catch(fail);
+  }
+
   // ---------- login ----------
 
   function login(e) {
@@ -285,6 +332,7 @@
     api('POST', '/auth/login', { email: f.email.value, password: f.password.value }).then(function (user) {
       state.user = user;
       f.password.value = '';
+      $('nav-settings').classList.toggle('hidden', user.role !== 'admin');
       route();
     }).catch(fail);
   }
@@ -302,6 +350,7 @@
   function route() {
     if (!state.user) return;
     var parts = location.hash.replace(/^#\/?/, '').split('/');
+    if (parts[0] === 'settings') return openSettings();
     if (parts[0] === 'customers' && parts[1]) return openCustomer(parts[1]);
     if (parts[0] === 'customers') { show('customers'); return loadCustomers(); }
     if (parts[0] === 'invoices' && parts[1]) return openInvoice(parts[1]);
@@ -357,8 +406,13 @@
     $('logout').addEventListener('click', logout);
 
     window.addEventListener('hashchange', route);
+    $('acc-form').addEventListener('submit', saveAccount);
+    $('user-form').addEventListener('submit', addUser);
+    $('user-rows').addEventListener('click', deleteUser);
+
     api('GET', '/auth/me').then(function (user) {
       state.user = user;
+      $('nav-settings').classList.toggle('hidden', user.role !== 'admin');
       route();
     }).catch(function () { show('login'); });
   });

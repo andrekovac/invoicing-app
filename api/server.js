@@ -22,6 +22,7 @@ app.get('/api/health', function (req, res) {
 app.use('/api/v1/auth', require('./routes/auth'));
 app.use('/api/v1/customers', require('./routes/customers'));
 app.use('/api/v1/invoices', require('./routes/invoices'));
+app.use('/api/v1/admin', require('./routes/admin'));
 
 app.use('/api', function (req, res) {
   res.status(404).json({ error: 'not found' });
