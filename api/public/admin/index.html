@@ -113,12 +113,17 @@
       <h2 id="cust-title">Kunde</h2>
       <form id="cust-form">
         <label>Name <input name="name" required></label>
+        <label>Ansprechpartner <input name="contact_name"></label>
         <label>Straße <input name="street"></label>
         <div class="row">
           <label>PLZ <input name="zip" size="6"></label>
           <label>Ort <input name="city"></label>
         </div>
-        <label>E-Mail <input name="email" type="email"></label>
+        <div class="row">
+          <label>E-Mail <input name="email" type="email"></label>
+          <label>Telefon <input name="phone"></label>
+        </div>
+        <label>USt-IdNr. <input name="vat_id"></label>
         <div class="actions">
           <button type="submit">Speichern</button>
           <button type="button" id="cust-delete" class="danger">Löschen</button>

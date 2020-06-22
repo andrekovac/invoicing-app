@@ -228,6 +228,8 @@
 
   // ---------- customers ----------
 
+  var CUST_FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'email', 'phone', 'vat_id'];
+
   function loadCustomers() {
     var q = $('cust-q').value.trim();
     api('GET', '/customers' + (q ? '?q=' + encodeURIComponent(q) : '')).then(function (rows) {
@@ -241,7 +243,7 @@
     state.customer = c;
     var f = $('cust-form');
     $('cust-title').textContent = c.id ? c.name : 'Neuer Kunde';
-    ['name', 'street', 'zip', 'city', 'email'].forEach(function (k) {
+    CUST_FIELDS.forEach(function (k) {
       if (f[k]) f[k].value = c[k] || '';
     });
     $('cust-delete').classList.toggle('hidden', !c.id);
@@ -257,7 +259,7 @@
     e.preventDefault();
     var f = $('cust-form');
     var data = {};
-    ['name', 'street', 'zip', 'city', 'email'].forEach(function (k) {
+    CUST_FIELDS.forEach(function (k) {
       if (f[k]) data[k] = f[k].value.trim();
     });
     var c = state.customer;

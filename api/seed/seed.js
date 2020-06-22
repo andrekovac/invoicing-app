@@ -6,9 +6,9 @@ const auth = require('../lib/auth');
 
 var CUSTOMERS = [
   { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
-  { name: 'Schulz Immobilien GmbH', street: 'Poppelsdorfer Allee 8', zip: '53115', city: 'Bonn', email: 'buero@schulz-immobilien.example' },
-  { name: 'Hofmann Logistik GmbH', street: 'Industriestr. 112', zip: '51373', city: 'Leverkusen', email: 'rechnung@hofmann-logistik.example' },
-  { name: 'Praxis Dr. Weber', street: 'Aachener Str. 220', zip: '50931', city: 'Köln', email: 'praxis@dr-weber.example' },
+  { name: 'Schulz Immobilien GmbH', contact_name: 'Mia Schulz', street: 'Poppelsdorfer Allee 8', zip: '53115', city: 'Bonn', email: 'mia.schulz@example.com', phone: '0228 4711 20' },
+  { name: 'Hofmann Logistik GmbH', contact_name: 'Peter Hofmann', street: 'Industriestr. 112', zip: '51373', city: 'Leverkusen', email: 'rechnung@hofmann-logistik.example', vat_id: 'DE281734992' },
+  { name: 'Praxis Dr. Weber', contact_name: 'Dr. Anja Weber', street: 'Aachener Str. 220', zip: '50931', city: 'Köln', email: 'praxis@dr-weber.example' },
   { name: 'Café Rosenrot', street: 'Kasernenstr. 6', zip: '40213', city: 'Düsseldorf', email: 'hallo@cafe-rosenrot.example' }
 ];
 

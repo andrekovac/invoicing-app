@@ -1,13 +1,13 @@
 const db = require('../db');
 
-const FIELDS = ['name', 'street', 'zip', 'city', 'email'];
+const FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'email', 'phone', 'vat_id'];
 
 function list(accountId, q) {
   var sql = 'SELECT * FROM customers WHERE account_id = ?';
   var args = [accountId];
   if (q) {
-    sql += ' AND (name LIKE ? OR city LIKE ?)';
-    args.push('%' + q + '%', '%' + q + '%');
+    sql += ' AND (name LIKE ? OR city LIKE ? OR contact_name LIKE ?)';
+    args.push('%' + q + '%', '%' + q + '%', '%' + q + '%');
   }
   sql += ' ORDER BY name';
   return db.open().prepare(sql).all.apply(db.open().prepare(sql), args);

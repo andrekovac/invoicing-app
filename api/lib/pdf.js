@@ -46,12 +46,14 @@ function invoiceLines(inv, account) {
   lines.push('');
   lines.push('');
   lines.push(c.name || '');
+  if (c.contact_name) lines.push(c.contact_name);
   if (c.street) lines.push(c.street);
   lines.push([c.zip, c.city].filter(Boolean).join(' '));
   lines.push('');
   lines.push('');
   lines.push(pad('RECHNUNG ' + (inv.number || '(Entwurf)'), 50) + pad('Datum: ' + dateDe(inv.issue_date), 28, true));
   if (inv.due_date) lines.push(pad('', 50) + pad('Fällig: ' + dateDe(inv.due_date), 28, true));
+  if (c.vat_id) lines.push(pad('', 50) + pad('USt-IdNr.: ' + c.vat_id, 28, true));
   lines.push('');
   lines.push(pad('Pos', 4) + pad('Beschreibung', 40) + pad('Menge', 8, true) + pad('Einzel', 13, true) + pad('Summe', 13, true));
   lines.push(new Array(WIDTH + 1).join('-'));
