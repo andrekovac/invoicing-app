@@ -31,9 +31,14 @@ router.get('/:id/pdf', function (req, res) {
   var inv = invoices.getById(Number(req.params.id));
   if (!inv) return res.status(404).json({ error: 'not found' });
   var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(inv.account_id);
-  var name = (inv.number || 'entwurf-' + inv.id) + '.pdf';
+  var name = inv.number || 'entwurf-' + inv.id;
+  // ?format=txt -> same lines as plain text, for pasting into mails
+  if (req.query.format === 'txt') {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.send(pdf.invoiceLines(inv, account).join('\r\n') + '\r\n');
+  }
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'inline; filename="' + name + '"');
+  res.setHeader('Content-Disposition', (req.query.download ? 'attachment' : 'inline') + '; filename="' + name + '.pdf"');
   res.send(pdf.invoicePdf(inv, account));
 });
 

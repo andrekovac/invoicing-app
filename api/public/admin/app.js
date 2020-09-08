@@ -184,7 +184,11 @@
     $('inv-cancel').classList.toggle('hidden', !inv.id || inv.status === 'cancelled' || inv.status === 'draft');
     $('inv-delete').classList.toggle('hidden', !inv.id || inv.status !== 'draft');
     $('inv-pdf').classList.toggle('hidden', !inv.id);
-    if (inv.id) $('inv-pdf').href = API + '/invoices/' + inv.id + '/pdf';
+    $('inv-txt').classList.toggle('hidden', !inv.id);
+    if (inv.id) {
+      $('inv-pdf').href = API + '/invoices/' + inv.id + '/pdf';
+      $('inv-txt').href = API + '/invoices/' + inv.id + '/pdf?format=txt';
+    }
     updateTotals();
   }
 
