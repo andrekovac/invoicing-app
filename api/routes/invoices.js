@@ -25,6 +25,12 @@ function checkItems(items) {
   return null;
 }
 
+function checkDiscount(d) {
+  if (d === undefined || d === null || d === '') return true;
+  var n = Number(d);
+  return !isNaN(n) && n >= 0 && n <= 50;
+}
+
 // pdf stays above the login check: the admin page opens it in a new tab / download
 // and that did not send the cookie in all browsers. TODO check again
 router.get('/:id/pdf', function (req, res) {
@@ -59,6 +65,7 @@ router.post('/preview', function (req, res) {
   if (err) return res.status(400).json({ error: err });
   var vat = body.vat_rate !== undefined ? Number(body.vat_rate) : 0.19;
   var net = pricing.sumItems(body.items);
+  if (body.discount_percent) net = net - net * Number(body.discount_percent) / 100;
   var gross = money.round2(pricing.gross(net, vat * 100));
   res.json({
     total_net: money.round2(net),
@@ -90,6 +97,7 @@ router.post('/', function (req, res) {
   if (body.vat_rate !== undefined && !pricing.isValidRate(Math.round(Number(body.vat_rate) * 100))) {
     return res.status(400).json({ error: 'Steuersatz ungültig' });
   }
+  if (!checkDiscount(body.discount_percent)) return res.status(400).json({ error: 'Rabatt ungültig' });
   res.status(201).json(invoices.create(req.accountId, body));
 });
 
@@ -103,6 +111,7 @@ router.put('/:id', function (req, res) {
     var err = checkItems(body.items);
     if (err) return res.status(400).json({ error: err });
   }
+  if (!checkDiscount(body.discount_percent)) return res.status(400).json({ error: 'Rabatt ungültig' });
   res.json(invoices.update(id, body));
 });
 
@@ -123,7 +132,17 @@ router.post('/:id/paid', function (req, res) {
   var inv = invoices.findById(id);
   if (!inv) return res.status(404).json({ error: 'not found' });
   if (inv.status !== 'issued') return res.status(409).json({ error: 'nur gestellte Rechnungen können bezahlt werden' });
-  res.json(invoices.setStatus(id, 'paid'));
+  var paidAt = req.body && req.body.paid_at;
+  if (paidAt && !/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) return res.status(400).json({ error: 'Datum ungültig' });
+  res.json(invoices.markPaid(id, paidAt));
+});
+
+router.put('/:id/note', function (req, res) {
+  var id = Number(req.params.id);
+  if (!invoices.findById(id)) return res.status(404).json({ error: 'not found' });
+  var note = req.body && req.body.note;
+  if (note && String(note).length > 2000) return res.status(400).json({ error: 'Notiz zu lang' });
+  res.json(invoices.setNote(id, note));
 });
 
 router.post('/:id/cancel', function (req, res) {

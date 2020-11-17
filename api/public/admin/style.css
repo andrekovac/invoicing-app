@@ -79,3 +79,4 @@ form label input, form label select { display: block; margin-top: 2px; min-width
 .status-issued { background: #fff3cd; }
 .status-paid { background: #d4edda; }
 .status-cancelled { background: #f8d7da; text-decoration: line-through; }
+textarea { font: inherit; display: block; margin-top: 2px; width: 100%; }

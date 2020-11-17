@@ -77,6 +77,14 @@
         </table>
         <button type="button" id="item-add">+ Position</button>
 
+        <div class="row">
+          <label>Rabatt % <input name="discount_percent" size="5" value="0"></label>
+        </div>
+        <label>Interne Notiz (nicht auf der Rechnung)
+          <textarea name="note" rows="2" cols="60"></textarea>
+        </label>
+        <button type="button" id="note-save" class="hidden">Notiz speichern</button>
+
         <table class="totals">
           <tr><td>Netto</td><td class="num" id="t-net"></td></tr>
           <tr><td>USt.</td><td class="num" id="t-tax"></td></tr>

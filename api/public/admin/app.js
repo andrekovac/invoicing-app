@@ -141,6 +141,8 @@
       vat_rate: Number(f.vat_rate.value),
       issue_date: f.issue_date.value || null,
       due_date: f.due_date.value || null,
+      discount_percent: num(f.discount_percent.value || '0'),
+      note: f.note.value,
       items: readItems()
     };
   }
@@ -155,7 +157,11 @@
     clearTimeout(previewTimer);
     previewTimer = setTimeout(function () {
       var valid = items.filter(function (it) { return it.description && !isNaN(it.quantity) && !isNaN(it.unit_price); });
-      api('POST', '/invoices/preview', { vat_rate: Number($('inv-form').vat_rate.value), items: valid }).then(function (t) {
+      api('POST', '/invoices/preview', {
+        vat_rate: Number($('inv-form').vat_rate.value),
+        discount_percent: num($('inv-form').discount_percent.value || '0') || 0,
+        items: valid
+      }).then(function (t) {
         $('t-net').textContent = euro(t.total_net);
         $('t-tax').textContent = euro(t.total_tax);
         $('t-gross').textContent = euro(t.total_gross);
@@ -172,11 +178,15 @@
     f.vat_rate.value = String(inv.vat_rate === undefined ? 0.19 : inv.vat_rate);
     f.issue_date.value = inv.issue_date || '';
     f.due_date.value = inv.due_date || '';
+    f.discount_percent.value = String(inv.discount_percent || 0).replace('.', ',');
+    f.note.value = inv.note || '';
     var items = inv.items && inv.items.length ? inv.items : [{ description: '', quantity: 1, unit_price: 0 }];
     $('item-rows').innerHTML = items.map(itemRow).join('');
 
     var inputs = f.querySelectorAll('input, select');
     for (var i = 0; i < inputs.length; i++) inputs[i].disabled = !isDraft;
+    f.note.disabled = false;
+    $('note-save').classList.toggle('hidden', isDraft);
     $('item-add').classList.toggle('hidden', !isDraft);
     $('inv-save').classList.toggle('hidden', !isDraft);
     $('inv-issue').classList.toggle('hidden', !inv.id || inv.status !== 'draft');
@@ -220,6 +230,12 @@
         fillInvoice(inv);
       }).catch(fail);
     };
+  }
+
+  function saveNote() {
+    api('PUT', '/invoices/' + state.invoice.id + '/note', { note: $('inv-form').note.value }).then(function () {
+      message('Notiz gespeichert');
+    }).catch(fail);
   }
 
   function deleteInvoice() {
@@ -404,6 +420,7 @@
     $('inv-paid').addEventListener('click', invoiceAction('paid'));
     $('inv-cancel').addEventListener('click', invoiceAction('cancel', 'Rechnung stornieren?'));
     $('inv-delete').addEventListener('click', deleteInvoice);
+    $('note-save').addEventListener('click', saveNote);
 
     $('cust-form').addEventListener('submit', saveCustomer);
     $('cust-delete').addEventListener('click', deleteCustomer);

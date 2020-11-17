@@ -30,9 +30,11 @@ function qty(n) {
 
 // totals are computed from the items again, so the pdf always matches its positions
 function totals(inv) {
-  var net = pricing.sumItems(inv.items);
+  var sum = pricing.sumItems(inv.items);
+  var discount = inv.discount_percent ? sum * inv.discount_percent / 100 : 0;
+  var net = sum - discount;
   var gross = money.round2(pricing.gross(net, inv.vat_rate * 100));
-  return { net: money.round2(net), tax: money.round2(gross - net), gross: gross };
+  return { sum: money.round2(sum), discount: money.round2(discount), net: money.round2(net), tax: money.round2(gross - money.round2(net)), gross: gross };
 }
 
 function invoiceLines(inv, account) {
@@ -77,6 +79,10 @@ function invoiceLines(inv, account) {
 
   var t = totals(inv);
   lines.push(new Array(WIDTH + 1).join('-'));
+  if (t.discount) {
+    lines.push(pad('Zwischensumme', 65, true) + pad(money.formatEuro(t.sum), 13, true));
+    lines.push(pad('Rabatt ' + String(inv.discount_percent).replace('.', ',') + ' %', 65, true) + pad(money.formatEuro(-t.discount), 13, true));
+  }
   lines.push(pad('Netto', 65, true) + pad(money.formatEuro(t.net), 13, true));
   lines.push(pad('USt. ' + rate + ' %', 65, true) + pad(money.formatEuro(t.tax), 13, true));
   lines.push(pad('Gesamt', 65, true) + pad(money.formatEuro(t.gross), 13, true));
