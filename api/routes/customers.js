@@ -1,5 +1,6 @@
 const express = require('express');
 const customers = require('../services/customers');
+const invoices = require('../services/invoices');
 const auth = require('../lib/auth');
 
 const router = express.Router();
@@ -13,6 +14,12 @@ router.get('/:id', function (req, res) {
   var c = customers.findById(Number(req.params.id));
   if (!c) return res.status(404).json({ error: 'not found' });
   res.json(c);
+});
+
+router.get('/:id/invoices', function (req, res) {
+  var c = customers.findById(Number(req.params.id));
+  if (!c) return res.status(404).json({ error: 'not found' });
+  res.json(invoices.list(req.accountId, { customer_id: c.id }));
 });
 
 router.post('/', function (req, res) {

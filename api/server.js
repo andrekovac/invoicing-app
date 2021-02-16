@@ -6,7 +6,17 @@ const session = require('./lib/session');
 const PORT = process.env.PORT || 4730;
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// request log
+app.use(function (req, res, next) {
+  if (process.env.APP_DB_FILE === ':memory:') return next();
+  var start = Date.now();
+  res.on('finish', function () {
+    console.log(req.method + ' ' + req.originalUrl + ' ' + res.statusCode + ' ' + (Date.now() - start) + 'ms');
+  });
+  next();
+});
 
 app.use(session.middleware);
 

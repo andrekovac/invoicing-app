@@ -80,3 +80,6 @@ form label input, form label select { display: block; margin-top: 2px; min-width
 .status-paid { background: #d4edda; }
 .status-cancelled { background: #f8d7da; text-decoration: line-through; }
 textarea { font: inherit; display: block; margin-top: 2px; width: 100%; }
+
+.summary { display: flex; gap: 24px; padding: 8px 0 14px; color: #555; flex-wrap: wrap; }
+.summary .warn b { color: #b23b3b; }

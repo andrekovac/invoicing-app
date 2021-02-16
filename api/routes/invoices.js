@@ -58,6 +58,10 @@ router.get('/', function (req, res) {
   }));
 });
 
+router.get('/summary', function (req, res) {
+  res.json(invoices.summary(req.accountId));
+});
+
 // totals for the form while typing
 router.post('/preview', function (req, res) {
   var body = req.body || {};

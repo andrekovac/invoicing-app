@@ -95,6 +95,16 @@
     }).catch(fail);
   }
 
+  function loadSummary() {
+    api('GET', '/invoices/summary').then(function (s) {
+      $('inv-summary').innerHTML =
+        '<span>Offen: <b>' + s.open_count + '</b> (' + euro(s.open_gross) + ')</span>' +
+        '<span class="' + (s.overdue_count ? 'warn' : '') + '">Überfällig: <b>' + s.overdue_count + '</b> (' + euro(s.overdue_gross) + ')</span>' +
+        '<span>Bezahlt dieses Jahr: <b>' + euro(s.paid_this_year) + '</b></span>' +
+        '<span>Entwürfe: ' + s.draft_count + ' (' + euro(s.draft_gross) + ')</span>';
+    }).catch(fail);
+  }
+
   function loadCustomerOptions() {
     return api('GET', '/customers').then(function (rows) {
       state.customers = rows;
@@ -267,6 +277,14 @@
       if (f[k]) f[k].value = c[k] || '';
     });
     $('cust-delete').classList.toggle('hidden', !c.id);
+    $('cust-invoices').innerHTML = '';
+    if (!c.id) return;
+    api('GET', '/customers/' + c.id + '/invoices').then(function (rows) {
+      $('cust-invoices').innerHTML = rows.map(function (inv) {
+        return '<tr data-id="' + inv.id + '"><td>' + esc(inv.number || '(Entwurf)') + '</td><td>' + dateDe(inv.issue_date) + '</td>' +
+          '<td>' + STATUS[inv.status] + '</td><td class="num">' + euro(inv.total_gross) + '</td></tr>';
+      }).join('') || '<tr><td>Noch keine Rechnungen</td></tr>';
+    }).catch(fail);
   }
 
   function openCustomer(id) {
@@ -378,6 +396,7 @@
     if (parts[0] === 'invoices' && parts[1]) return openInvoice(parts[1]);
     show('invoices');
     loadInvoices();
+    loadSummary();
   }
 
   function rowClick(base) {
@@ -398,6 +417,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     $('inv-rows').addEventListener('click', rowClick('invoices'));
     $('cust-rows').addEventListener('click', rowClick('customers'));
+    $('cust-invoices').addEventListener('click', rowClick('invoices'));
     $('inv-q').addEventListener('input', debounce(loadInvoices));
     $('inv-status').addEventListener('change', loadInvoices);
     $('cust-q').addEventListener('input', debounce(loadCustomers));

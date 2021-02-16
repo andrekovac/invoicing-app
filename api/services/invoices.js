@@ -60,6 +60,31 @@ function list(accountId, opts) {
   return stmt.all.apply(stmt, args);
 }
 
+// numbers for the overview: open, overdue, paid this year
+function summary(accountId) {
+  var c = conn();
+  var today = new Date().toISOString().slice(0, 10);
+  var open = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued'").get(accountId);
+  var overdue = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued' AND due_date < ?").get(accountId, today);
+  var paid = c.prepare("SELECT coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'paid' AND substr(paid_at, 1, 4) = ?").get(accountId, today.slice(0, 4));
+  var drafts = c.prepare("SELECT id, vat_rate, discount_percent FROM invoices WHERE account_id = ? AND status = 'draft'").all(accountId);
+  // drafts are not in the stored totals yet when items were edited by hand, so compute them
+  var draftSum = drafts.reduce(function (sum, d) {
+    var net = pricing.sumItems(itemsFor(d.id));
+    if (d.discount_percent) net = net * (1 - d.discount_percent / 100);
+    return sum + pricing.gross(net, d.vat_rate * 100);
+  }, 0);
+  return {
+    open_count: open.n,
+    open_gross: money.round2(open.sum),
+    overdue_count: overdue.n,
+    overdue_gross: money.round2(overdue.sum),
+    paid_this_year: money.round2(paid.sum),
+    draft_count: drafts.length,
+    draft_gross: money.round2(draftSum)
+  };
+}
+
 function insertItems(invoiceId, items) {
   var stmt = conn().prepare('INSERT INTO invoice_items (invoice_id, position, description, quantity, unit_price) VALUES (?, ?, ?, ?, ?)');
   items.forEach(function (it, i) {
@@ -185,6 +210,7 @@ module.exports = {
   getById: getById,
   itemsFor: itemsFor,
   list: list,
+  summary: summary,
   nextNumber: nextNumber,
   findByNumber: findByNumber,
   issue: issue,

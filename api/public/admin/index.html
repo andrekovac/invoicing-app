@@ -31,6 +31,7 @@
 
     <!-- invoice list -->
     <section id="view-invoices" class="view hidden">
+      <div class="summary" id="inv-summary"></div>
       <div class="toolbar">
         <input id="inv-q" type="search" placeholder="Nummer oder Kunde">
         <select id="inv-status">
@@ -139,6 +140,10 @@
           <a href="#/customers">Zurück</a>
         </div>
       </form>
+      <h3>Rechnungen</h3>
+      <table class="list">
+        <tbody id="cust-invoices"></tbody>
+      </table>
     </section>
 
     <!-- settings (admin only) -->
