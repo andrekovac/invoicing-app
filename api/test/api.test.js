@@ -162,6 +162,36 @@ test('mark paid', async function () {
   assert.strictEqual(res.body.paid_at, '2021-01-20');
 });
 
+test('copy invoice as draft', async function () {
+  var res = await call('POST', '/api/v1/invoices/1/copy');
+  assert.strictEqual(res.status, 201);
+  assert.strictEqual(res.body.status, 'draft');
+  assert.strictEqual(res.body.number, null);
+  assert.strictEqual(res.body.items.length, 2);
+  assert.strictEqual(res.body.total_gross, 2177.7);
+});
+
+test('single items on a draft', async function () {
+  var draft = await call('POST', '/api/v1/invoices', { customer_id: 1, items: [] });
+  var id = draft.body.id;
+  var added = await call('POST', '/api/v1/invoices/' + id + '/items', { description: 'Stunde', quantity: 3, unit_price: '80,00' });
+  assert.strictEqual(added.status, 201);
+  assert.strictEqual(added.body.total_net, 240);
+  var itemId = added.body.items[0].id;
+  var changed = await call('PUT', '/api/v1/invoices/' + id + '/items/' + itemId, { quantity: 4 });
+  assert.strictEqual(changed.body.total_net, 320);
+  var removed = await call('DELETE', '/api/v1/invoices/' + id + '/items/' + itemId);
+  assert.strictEqual(removed.body.total_net, 0);
+});
+
+test('mail text', async function () {
+  var res = await call('GET', '/api/v1/invoices/2/mail');
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.to, 'mia.schulz@example.com');
+  assert.match(res.body.subject, /^Rechnung RE-2020-0002/);
+  assert.match(res.body.body, /^Hallo Mia Schulz,/);
+});
+
 test('users need admin', async function () {
   var res = await call('GET', '/api/v1/admin/users');
   assert.strictEqual(res.status, 200);

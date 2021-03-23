@@ -203,6 +203,9 @@
     $('inv-paid').classList.toggle('hidden', inv.status !== 'issued');
     $('inv-cancel').classList.toggle('hidden', !inv.id || inv.status === 'cancelled' || inv.status === 'draft');
     $('inv-delete').classList.toggle('hidden', !inv.id || inv.status !== 'draft');
+    $('inv-copy').classList.toggle('hidden', !inv.id);
+    $('inv-mail').classList.toggle('hidden', !inv.id || inv.status === 'draft');
+    $('mail-box').classList.add('hidden');
     $('inv-pdf').classList.toggle('hidden', !inv.id);
     $('inv-txt').classList.toggle('hidden', !inv.id);
     if (inv.id) {
@@ -240,6 +243,23 @@
         fillInvoice(inv);
       }).catch(fail);
     };
+  }
+
+  function copyInvoice() {
+    api('POST', '/invoices/' + state.invoice.id + '/copy').then(function (copy) {
+      message('Kopie angelegt');
+      location.hash = '#/invoices/' + copy.id;
+    }).catch(fail);
+  }
+
+  function showMail() {
+    api('GET', '/invoices/' + state.invoice.id + '/mail').then(function (m) {
+      $('mail-to').textContent = m.to || '(keine E-Mail beim Kunden)';
+      $('mail-subject').textContent = m.subject;
+      $('mail-body').value = m.body;
+      $('mail-box').classList.remove('hidden');
+      $('mail-body').select();
+    }).catch(fail);
   }
 
   function saveNote() {
@@ -441,6 +461,8 @@
     $('inv-cancel').addEventListener('click', invoiceAction('cancel', 'Rechnung stornieren?'));
     $('inv-delete').addEventListener('click', deleteInvoice);
     $('note-save').addEventListener('click', saveNote);
+    $('inv-copy').addEventListener('click', copyInvoice);
+    $('inv-mail').addEventListener('click', showMail);
 
     $('cust-form').addEventListener('submit', saveCustomer);
     $('cust-delete').addEventListener('click', deleteCustomer);

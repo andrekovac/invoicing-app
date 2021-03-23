@@ -1,6 +1,7 @@
 const db = require('../db');
 const pricing = require('../lib/pricing');
 const money = require('../lib/money');
+const utils = require('../lib/utils');
 
 function conn() {
   return db.open();
@@ -63,7 +64,7 @@ function list(accountId, opts) {
 // numbers for the overview: open, overdue, paid this year
 function summary(accountId) {
   var c = conn();
-  var today = new Date().toISOString().slice(0, 10);
+  var today = utils.today();
   var open = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued'").get(accountId);
   var overdue = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued' AND due_date < ?").get(accountId, today);
   var paid = c.prepare("SELECT coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'paid' AND substr(paid_at, 1, 4) = ?").get(accountId, today.slice(0, 4));
@@ -141,29 +142,17 @@ function update(id, data) {
   return getById(id);
 }
 
-function pad(n, len) {
-  var s = String(n);
-  while (s.length < len) s = '0' + s;
-  return s;
-}
-
 // RE-2020-0001, counts per account and year
 function nextNumber(accountId, year) {
   var prefix = 'RE-' + year + '-';
   var last = conn().prepare('SELECT number FROM invoices WHERE account_id = ? AND number LIKE ? ORDER BY number DESC LIMIT 1')
     .get(accountId, prefix + '%');
   var n = last ? parseInt(last.number.slice(prefix.length), 10) + 1 : 1;
-  return prefix + pad(n, 4);
+  return prefix + utils.pad(n, 4);
 }
 
 function findByNumber(accountId, number) {
   return conn().prepare('SELECT * FROM invoices WHERE account_id = ? AND number = ?').get(accountId, number);
-}
-
-function addDays(dateStr, days) {
-  var d = new Date(dateStr + 'T12:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 // draft -> issued. number is given out here, not on create, so drafts don't burn numbers
@@ -175,8 +164,8 @@ function issue(id) {
     err.status = 409;
     throw err;
   }
-  var issueDate = inv.issue_date || new Date().toISOString().slice(0, 10);
-  var dueDate = inv.due_date || addDays(issueDate, 14);
+  var issueDate = inv.issue_date || utils.today();
+  var dueDate = inv.due_date || utils.addDays(issueDate, 14);
   var number = nextNumber(inv.account_id, issueDate.slice(0, 4));
   conn().prepare("UPDATE invoices SET status = 'issued', number = ?, issue_date = ?, due_date = ?, updated_at = ? WHERE id = ?")
     .run(number, issueDate, dueDate, now(), id);
@@ -190,7 +179,7 @@ function setStatus(id, status) {
 
 function markPaid(id, paidAt) {
   conn().prepare("UPDATE invoices SET status = 'paid', paid_at = ?, updated_at = ? WHERE id = ?")
-    .run(paidAt || new Date().toISOString().slice(0, 10), now(), id);
+    .run(paidAt || utils.today(), now(), id);
   return getById(id);
 }
 
@@ -198,6 +187,49 @@ function markPaid(id, paidAt) {
 function setNote(id, note) {
   conn().prepare('UPDATE invoices SET note = ?, updated_at = ? WHERE id = ?').run(note || null, now(), id);
   return getById(id);
+}
+
+// copy as new draft (same customer, items, rate). dates and number are not copied
+function duplicate(id) {
+  var inv = getById(id);
+  if (!inv) return null;
+  return create(inv.account_id, {
+    customer_id: inv.customer_id,
+    vat_rate: inv.vat_rate,
+    discount_percent: inv.discount_percent,
+    items: inv.items.map(function (it) {
+      return { description: it.description, quantity: it.quantity, unit_price: it.unit_price };
+    })
+  });
+}
+
+function addItem(invoiceId, item) {
+  var pos = conn().prepare('SELECT coalesce(max(position), 0) AS p FROM invoice_items WHERE invoice_id = ?').get(invoiceId).p;
+  conn().prepare('INSERT INTO invoice_items (invoice_id, position, description, quantity, unit_price) VALUES (?, ?, ?, ?, ?)')
+    .run(invoiceId, pos + 1, item.description, Number(item.quantity), Number(item.unit_price));
+  return update(invoiceId, {});
+}
+
+function updateItem(invoiceId, itemId, item) {
+  var old = conn().prepare('SELECT * FROM invoice_items WHERE id = ? AND invoice_id = ?').get(itemId, invoiceId);
+  if (!old) return null;
+  conn().prepare('UPDATE invoice_items SET description = ?, quantity = ?, unit_price = ? WHERE id = ?')
+    .run(item.description !== undefined ? item.description : old.description,
+      item.quantity !== undefined ? Number(item.quantity) : old.quantity,
+      item.unit_price !== undefined ? Number(item.unit_price) : old.unit_price,
+      itemId);
+  return update(invoiceId, {});
+}
+
+function removeItem(invoiceId, itemId) {
+  var info = conn().prepare('DELETE FROM invoice_items WHERE id = ? AND invoice_id = ?').run(itemId, invoiceId);
+  if (!info.changes) return null;
+  return update(invoiceId, {});
+}
+
+function years(accountId) {
+  return conn().prepare("SELECT DISTINCT substr(issue_date, 1, 4) AS year FROM invoices WHERE account_id = ? AND issue_date IS NOT NULL ORDER BY year DESC")
+    .all(accountId).map(function (r) { return r.year; });
 }
 
 function remove(id) {
@@ -219,5 +251,10 @@ module.exports = {
   setNote: setNote,
   create: create,
   update: update,
+  duplicate: duplicate,
+  addItem: addItem,
+  updateItem: updateItem,
+  removeItem: removeItem,
+  years: years,
   remove: remove
 };

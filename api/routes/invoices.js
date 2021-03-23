@@ -6,6 +6,7 @@ const money = require('../lib/money');
 const pdf = require('../lib/pdf');
 const db = require('../db');
 const auth = require('../lib/auth');
+const utils = require('../lib/utils');
 
 const router = express.Router();
 
@@ -62,6 +63,10 @@ router.get('/summary', function (req, res) {
   res.json(invoices.summary(req.accountId));
 });
 
+router.get('/years', function (req, res) {
+  res.json(invoices.years(req.accountId));
+});
+
 // totals for the form while typing
 router.post('/preview', function (req, res) {
   var body = req.body || {};
@@ -102,6 +107,9 @@ router.post('/', function (req, res) {
     return res.status(400).json({ error: 'Steuersatz ungültig' });
   }
   if (!checkDiscount(body.discount_percent)) return res.status(400).json({ error: 'Rabatt ungültig' });
+  if ((body.issue_date && !utils.isDate(body.issue_date)) || (body.due_date && !utils.isDate(body.due_date))) {
+    return res.status(400).json({ error: 'Datum ungültig' });
+  }
   res.status(201).json(invoices.create(req.accountId, body));
 });
 
@@ -137,8 +145,98 @@ router.post('/:id/paid', function (req, res) {
   if (!inv) return res.status(404).json({ error: 'not found' });
   if (inv.status !== 'issued') return res.status(409).json({ error: 'nur gestellte Rechnungen können bezahlt werden' });
   var paidAt = req.body && req.body.paid_at;
-  if (paidAt && !/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) return res.status(400).json({ error: 'Datum ungültig' });
+  if (paidAt && !utils.isDate(paidAt)) return res.status(400).json({ error: 'Datum ungültig' });
   res.json(invoices.markPaid(id, paidAt));
+});
+
+// copy an invoice as a new draft, e.g. for the monthly maintenance invoices
+router.post('/:id/copy', function (req, res) {
+  var id = Number(req.params.id);
+  if (!invoices.findById(id)) return res.status(404).json({ error: 'not found' });
+  res.status(201).json(invoices.duplicate(id));
+});
+
+// text for the mail to the customer (the pdf is attached by hand)
+router.get('/:id/mail', function (req, res) {
+  var inv = invoices.getById(Number(req.params.id));
+  if (!inv) return res.status(404).json({ error: 'not found' });
+  if (inv.status === 'draft') return res.status(409).json({ error: 'Rechnung ist noch ein Entwurf' });
+  var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(inv.account_id) || {};
+  var c = inv.customer || {};
+  var greeting = c.contact_name ? 'Hallo ' + c.contact_name + ',' : 'Sehr geehrte Damen und Herren,';
+  var due = inv.due_date ? inv.due_date.split('-').reverse().join('.') : '';
+  var body = [
+    greeting,
+    '',
+    'anbei erhalten Sie unsere Rechnung ' + inv.number + ' über ' + money.formatEuro(inv.total_gross) + '.',
+    due ? 'Bitte überweisen Sie den Betrag bis zum ' + due + '.' : '',
+    '',
+    'Viele Grüße',
+    account.name || ''
+  ].join('\n');
+  res.json({
+    to: c.email || '',
+    subject: 'Rechnung ' + inv.number + (account.name ? ' - ' + account.name : ''),
+    body: body
+  });
+});
+
+// single items. the admin page sends all items with PUT, these are for scripts
+function checkItem(it) {
+  if (it.description !== undefined && !String(it.description).trim()) return 'Beschreibung fehlt';
+  if (it.quantity !== undefined) {
+    var q = Number(it.quantity);
+    if (isNaN(q) || q <= 0 || q > 10000) return 'Menge ungültig';
+  }
+  if (it.unit_price !== undefined) {
+    var p = money.parseEuro(it.unit_price);
+    if (isNaN(p) || p < 0 || p >= 1000000) return 'Preis ungültig';
+    it.unit_price = p;
+  }
+  return null;
+}
+
+function draftOr409(req, res) {
+  var inv = invoices.findById(Number(req.params.id));
+  if (!inv) {
+    res.status(404).json({ error: 'not found' });
+    return null;
+  }
+  if (inv.status !== 'draft') {
+    res.status(409).json({ error: 'gestellte Rechnungen können nicht geändert werden' });
+    return null;
+  }
+  return inv;
+}
+
+router.post('/:id/items', function (req, res) {
+  var inv = draftOr409(req, res);
+  if (!inv) return;
+  var it = req.body || {};
+  if (!it.description) return res.status(400).json({ error: 'Beschreibung fehlt' });
+  if (it.quantity === undefined) it.quantity = 1;
+  if (it.unit_price === undefined) return res.status(400).json({ error: 'Preis fehlt' });
+  var err = checkItem(it);
+  if (err) return res.status(400).json({ error: err });
+  res.status(201).json(invoices.addItem(inv.id, it));
+});
+
+router.put('/:id/items/:itemId', function (req, res) {
+  var inv = draftOr409(req, res);
+  if (!inv) return;
+  var err = checkItem(req.body || {});
+  if (err) return res.status(400).json({ error: err });
+  var result = invoices.updateItem(inv.id, Number(req.params.itemId), req.body || {});
+  if (!result) return res.status(404).json({ error: 'Position nicht gefunden' });
+  res.json(result);
+});
+
+router.delete('/:id/items/:itemId', function (req, res) {
+  var inv = draftOr409(req, res);
+  if (!inv) return;
+  var result = invoices.removeItem(inv.id, Number(req.params.itemId));
+  if (!result) return res.status(404).json({ error: 'Position nicht gefunden' });
+  res.json(result);
 });
 
 router.put('/:id/note', function (req, res) {

@@ -86,6 +86,12 @@
         </label>
         <button type="button" id="note-save" class="hidden">Notiz speichern</button>
 
+        <div id="mail-box" class="mailbox hidden">
+          <div><b>An:</b> <span id="mail-to"></span></div>
+          <div><b>Betreff:</b> <span id="mail-subject"></span></div>
+          <textarea id="mail-body" rows="8" readonly></textarea>
+        </div>
+
         <table class="totals">
           <tr><td>Netto</td><td class="num" id="t-net"></td></tr>
           <tr><td>USt.</td><td class="num" id="t-tax"></td></tr>
@@ -96,6 +102,8 @@
           <button type="submit" id="inv-save">Speichern</button>
           <button type="button" id="inv-issue">Rechnung stellen</button>
           <button type="button" id="inv-paid">Als bezahlt markieren</button>
+          <button type="button" id="inv-copy">Kopieren</button>
+          <button type="button" id="inv-mail">Mail-Text</button>
           <button type="button" id="inv-cancel" class="danger">Stornieren</button>
           <button type="button" id="inv-delete" class="danger">Löschen</button>
           <a id="inv-pdf" href="#" target="_blank">PDF</a>

@@ -83,3 +83,5 @@ textarea { font: inherit; display: block; margin-top: 2px; width: 100%; }
 
 .summary { display: flex; gap: 24px; padding: 8px 0 14px; color: #555; flex-wrap: wrap; }
 .summary .warn b { color: #b23b3b; }
+.mailbox { margin: 16px 0; padding: 10px; background: #f8f8f8; border: 1px solid #ddd; }
+.mailbox div { margin-bottom: 4px; }

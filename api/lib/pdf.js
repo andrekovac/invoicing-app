@@ -87,6 +87,9 @@ function invoiceLines(inv, account) {
   lines.push(pad('USt. ' + rate + ' %', 65, true) + pad(money.formatEuro(t.tax), 13, true));
   lines.push(pad('Gesamt', 65, true) + pad(money.formatEuro(t.gross), 13, true));
   lines.push('');
+  if (rate === 0) {
+    lines.push('Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).');
+  }
   lines.push('');
   if (inv.due_date) {
     lines.push('Bitte überweisen Sie den Betrag bis zum ' + dateDe(inv.due_date) + '.');

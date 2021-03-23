@@ -3,6 +3,7 @@ const db = require('../db');
 const invoices = require('../services/invoices');
 const customers = require('../services/customers');
 const auth = require('../lib/auth');
+const addDays = require('../lib/utils').addDays;
 
 var CUSTOMERS = [
   { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
@@ -28,12 +29,6 @@ var INVOICES = [
   [2, '2021-02-01', 'draft', 0.19, [['Wartung Website Februar', 1, 125], ['Hosting Q1', 3, 14.9]]],
   [4, '2021-02-05', 'draft', 0.07, [['Speisekarte Druck 100 Stk.', 100, 1.4]], { note: 'Steuersatz klären (Druckerzeugnis?)' }]
 ];
-
-function addDays(d, n) {
-  var x = new Date(d + 'T12:00:00');
-  x.setDate(x.getDate() + n);
-  return x.toISOString().slice(0, 10);
-}
 
 function seed() {
   var conn = db.open();

@@ -28,6 +28,9 @@ router.post('/', function (req, res) {
     return res.status(400).json({ error: 'Name fehlt' });
   }
   body.name = String(body.name).trim();
+  if (body.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) {
+    return res.status(400).json({ error: 'E-Mail ungültig' });
+  }
   res.status(201).json(customers.create(req.accountId, body));
 });
 
