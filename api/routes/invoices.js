@@ -32,8 +32,9 @@ function checkDiscount(d) {
   return !isNaN(n) && n >= 0 && n <= 50;
 }
 
-// pdf stays above the login check: the admin page opens it in a new tab / download
-// and that did not send the cookie in all browsers. TODO check again
+// pdf stays above the login check so the old admin (/admin-old) can open pdfs:
+// it opens them in a new tab / download and that did not send the cookie in all browsers.
+// TODO check again when the new web app is done
 router.get('/:id/pdf', function (req, res) {
   var inv = invoices.getById(Number(req.params.id));
   if (!inv) return res.status(404).json({ error: 'not found' });

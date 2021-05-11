@@ -20,9 +20,10 @@ app.use(function (req, res, next) {
 
 app.use(session.middleware);
 
-app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
-app.get('/', function (req, res) {
-  res.redirect('/admin/');
+// the first admin page. stays until the new web app can do everything
+app.use('/admin-old', express.static(path.join(__dirname, 'legacy', 'admin-old')));
+app.get(['/', '/admin', '/admin/'], function (req, res) {
+  res.redirect('/admin-old/');
 });
 
 app.get('/api/health', function (req, res) {
@@ -39,7 +40,7 @@ app.use('/api', function (req, res) {
 });
 
 app.use(function (err, req, res, next) {
-  console.error(err);
+  if (!err.status || err.status >= 500) console.error(err);
   res.status(err.status || 500).json({ error: err.message || 'server error' });
 });
 
