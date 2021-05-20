@@ -16,8 +16,43 @@ router.post('/login', function (req, res, next) {
   auth.verifyPassword(password, user.password_hash, function (err, ok) {
     if (err) return next(err);
     if (!ok) return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
+    var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(user.account_id);
+    if (!account || !account.active) return res.status(403).json({ error: 'Zugang gesperrt' });
+    db.open().prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id);
     session.set(res, { uid: user.id });
     res.json(auth.publicUser(user));
+  });
+});
+
+// new company signs up: account + first user (admin), logged in right away
+router.post('/signup', function (req, res, next) {
+  var body = req.body || {};
+  var company = String(body.company || '').trim();
+  var email = String(body.email || '').trim().toLowerCase();
+  var password = String(body.password || '');
+  if (!company) return res.status(400).json({ error: 'Firmenname fehlt' });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'E-Mail ungültig' });
+  if (password.length < 8) return res.status(400).json({ error: 'Passwort zu kurz (min. 8 Zeichen)' });
+  var c = db.open();
+  if (c.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email)) {
+    return res.status(409).json({ error: 'E-Mail gibt es schon' });
+  }
+  auth.hashPassword(password, function (err, hash) {
+    if (err) return next(err);
+    c.exec('BEGIN');
+    try {
+      var acc = c.prepare('INSERT INTO accounts (name, email, plan) VALUES (?, ?, ?)').run(company, email, body.plan === 'pro' ? 'pro' : 'basic');
+      var accountId = Number(acc.lastInsertRowid);
+      var info = c.prepare("INSERT INTO users (account_id, email, name, password_hash, role) VALUES (?, ?, ?, ?, 'admin')")
+        .run(accountId, email, body.name || null, hash);
+      c.exec('COMMIT');
+    } catch (e) {
+      c.exec('ROLLBACK');
+      return next(e);
+    }
+    var user = c.prepare('SELECT * FROM users WHERE id = ?').get(Number(info.lastInsertRowid));
+    session.set(res, { uid: user.id });
+    res.status(201).json(auth.publicUser(user));
   });
 });
 
@@ -27,7 +62,11 @@ router.post('/logout', function (req, res) {
 });
 
 router.get('/me', auth.requireLogin, function (req, res) {
-  res.json(auth.publicUser(req.user));
+  var u = auth.publicUser(req.user);
+  var acc = db.open().prepare('SELECT name, plan FROM accounts WHERE id = ?').get(req.accountId) || {};
+  u.account_name = acc.name;
+  u.plan = acc.plan;
+  res.json(u);
 });
 
 // change own password

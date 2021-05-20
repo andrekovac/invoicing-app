@@ -52,6 +52,16 @@ router.get('/:id/pdf', function (req, res) {
 
 router.use(auth.requireLogin);
 
+// invoice of the logged in account, else 404
+function ownInvoice(req, res) {
+  var inv = invoices.findById(Number(req.params.id));
+  if (!inv || inv.account_id !== req.accountId) {
+    res.status(404).json({ error: 'not found' });
+    return null;
+  }
+  return inv;
+}
+
 router.get('/', function (req, res) {
   res.json(invoices.list(req.accountId, {
     status: req.query.status,
@@ -99,7 +109,8 @@ router.get('/:id', function (req, res) {
 
 router.post('/', function (req, res) {
   var body = req.body || {};
-  if (!body.customer_id || !customers.findById(Number(body.customer_id))) {
+  var cust = body.customer_id && customers.findById(Number(body.customer_id));
+  if (!cust || cust.account_id !== req.accountId) {
     return res.status(400).json({ error: 'Kunde fehlt' });
   }
   var err = checkItems(body.items || []);
@@ -115,9 +126,9 @@ router.post('/', function (req, res) {
 });
 
 router.put('/:id', function (req, res) {
-  var id = Number(req.params.id);
-  var inv = invoices.findById(id);
-  if (!inv) return res.status(404).json({ error: 'not found' });
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var id = inv.id;
   if (inv.status !== 'draft') return res.status(409).json({ error: 'gestellte Rechnungen können nicht geändert werden' });
   var body = req.body || {};
   if (body.items) {
@@ -129,9 +140,9 @@ router.put('/:id', function (req, res) {
 });
 
 router.post('/:id/issue', function (req, res, next) {
-  var id = Number(req.params.id);
-  var inv = invoices.findById(id);
-  if (!inv) return res.status(404).json({ error: 'not found' });
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var id = inv.id;
   if (!invoices.itemsFor(id).length) return res.status(400).json({ error: 'Rechnung hat keine Positionen' });
   try {
     res.json(invoices.issue(id));
@@ -141,9 +152,9 @@ router.post('/:id/issue', function (req, res, next) {
 });
 
 router.post('/:id/paid', function (req, res) {
-  var id = Number(req.params.id);
-  var inv = invoices.findById(id);
-  if (!inv) return res.status(404).json({ error: 'not found' });
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var id = inv.id;
   if (inv.status !== 'issued') return res.status(409).json({ error: 'nur gestellte Rechnungen können bezahlt werden' });
   var paidAt = req.body && req.body.paid_at;
   if (paidAt && !utils.isDate(paidAt)) return res.status(400).json({ error: 'Datum ungültig' });
@@ -152,15 +163,15 @@ router.post('/:id/paid', function (req, res) {
 
 // copy an invoice as a new draft, e.g. for the monthly maintenance invoices
 router.post('/:id/copy', function (req, res) {
-  var id = Number(req.params.id);
-  if (!invoices.findById(id)) return res.status(404).json({ error: 'not found' });
-  res.status(201).json(invoices.duplicate(id));
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  res.status(201).json(invoices.duplicate(inv.id));
 });
 
 // text for the mail to the customer (the pdf is attached by hand)
 router.get('/:id/mail', function (req, res) {
+  if (!ownInvoice(req, res)) return;
   var inv = invoices.getById(Number(req.params.id));
-  if (!inv) return res.status(404).json({ error: 'not found' });
   if (inv.status === 'draft') return res.status(409).json({ error: 'Rechnung ist noch ein Entwurf' });
   var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(inv.account_id) || {};
   var c = inv.customer || {};
@@ -198,11 +209,8 @@ function checkItem(it) {
 }
 
 function draftOr409(req, res) {
-  var inv = invoices.findById(Number(req.params.id));
-  if (!inv) {
-    res.status(404).json({ error: 'not found' });
-    return null;
-  }
+  var inv = ownInvoice(req, res);
+  if (!inv) return null;
   if (inv.status !== 'draft') {
     res.status(409).json({ error: 'gestellte Rechnungen können nicht geändert werden' });
     return null;
@@ -241,25 +249,26 @@ router.delete('/:id/items/:itemId', function (req, res) {
 });
 
 router.put('/:id/note', function (req, res) {
-  var id = Number(req.params.id);
-  if (!invoices.findById(id)) return res.status(404).json({ error: 'not found' });
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var id = inv.id;
   var note = req.body && req.body.note;
   if (note && String(note).length > 2000) return res.status(400).json({ error: 'Notiz zu lang' });
   res.json(invoices.setNote(id, note));
 });
 
 router.post('/:id/cancel', function (req, res) {
-  var id = Number(req.params.id);
-  var inv = invoices.findById(id);
-  if (!inv) return res.status(404).json({ error: 'not found' });
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var id = inv.id;
   if (inv.status === 'cancelled') return res.status(409).json({ error: 'schon storniert' });
   res.json(invoices.setStatus(id, 'cancelled'));
 });
 
 router.delete('/:id', function (req, res) {
-  var id = Number(req.params.id);
-  var inv = invoices.findById(id);
-  if (!inv) return res.status(404).json({ error: 'not found' });
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var id = inv.id;
   if (inv.status !== 'draft') return res.status(409).json({ error: 'nur Entwürfe können gelöscht werden' });
   invoices.remove(id);
   res.status(204).end();

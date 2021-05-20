@@ -6,19 +6,29 @@ const auth = require('../lib/auth');
 const router = express.Router();
 router.use(auth.requireLogin);
 
+// customer of the logged in account or 404 (never say that it exists elsewhere)
+function own(req, res) {
+  var c = customers.findById(Number(req.params.id));
+  if (!c || c.account_id !== req.accountId) {
+    res.status(404).json({ error: 'not found' });
+    return null;
+  }
+  return c;
+}
+
 router.get('/', function (req, res) {
   res.json(customers.list(req.accountId, req.query.q));
 });
 
 router.get('/:id', function (req, res) {
-  var c = customers.findById(Number(req.params.id));
-  if (!c) return res.status(404).json({ error: 'not found' });
+  var c = own(req, res);
+  if (!c) return;
   res.json(c);
 });
 
 router.get('/:id/invoices', function (req, res) {
-  var c = customers.findById(Number(req.params.id));
-  if (!c) return res.status(404).json({ error: 'not found' });
+  var c = own(req, res);
+  if (!c) return;
   res.json(invoices.list(req.accountId, { customer_id: c.id }));
 });
 
@@ -35,8 +45,9 @@ router.post('/', function (req, res) {
 });
 
 router.put('/:id', function (req, res) {
-  var id = Number(req.params.id);
-  if (!customers.findById(id)) return res.status(404).json({ error: 'not found' });
+  var c = own(req, res);
+  if (!c) return;
+  var id = c.id;
   if (req.body.name !== undefined && !String(req.body.name).trim()) {
     return res.status(400).json({ error: 'Name fehlt' });
   }
@@ -44,10 +55,10 @@ router.put('/:id', function (req, res) {
 });
 
 router.delete('/:id', function (req, res, next) {
-  var id = Number(req.params.id);
-  if (!customers.findById(id)) return res.status(404).json({ error: 'not found' });
+  var c = own(req, res);
+  if (!c) return;
   try {
-    customers.remove(id);
+    customers.remove(c.id);
     res.status(204).end();
   } catch (err) {
     next(err);

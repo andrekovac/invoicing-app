@@ -6,7 +6,7 @@ const auth = require('../lib/auth');
 const router = express.Router();
 router.use(auth.requireAdmin);
 
-const ACCOUNT_FIELDS = ['name', 'street', 'zip', 'city', 'iban', 'tax_number'];
+const ACCOUNT_FIELDS = ['name', 'street', 'zip', 'city', 'iban', 'tax_number', 'email'];
 
 router.get('/account', function (req, res) {
   res.json(db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(req.accountId));
