@@ -1,0 +1,8 @@
+﻿KdNr;Firma;Ansprechpartner;Strasse;PLZ;Ort;Land;Email;Telefon;UStIdNr;StdUSt
+K1001;Krause GmbH;Thomas Krause;Rudolf-Diesel-Str. 14;97424;Schweinfurt;;buchhaltung@krause-gmbh.example;09721 6630-0;DE813377104;
+K1002;Mueller Haustechnik GmbH;Stefan Mueller;Gewerbepark 3;97318;Kitzingen;;info@mueller-haustechnik.example;09321 2210;;
+K1003;Verlag Sonnenblick;Ruth Engel;Obere Sandstr. 22;96049;Bamberg;;herstellung@verlag-sonnenblick.example;0951 50 77 31;DE264118590;
+K1004;Gasthaus Zum Löwen;Familie Brehm;Marktplatz 5;97199;Ochsenfurt;;loewen-ochsenfurt@example.com;09331 4412;;19
+K1005;Weingut Hartmann;Julia Hartmann;Weinstr. 9;97332;Volkach;;julia@weingut-hartmann.example;09381 7123;DE301922847;19
+K1006;TSV Ochsenfurt 1898 e.V.;Kassenwart;Am Sportplatz 1;97199;Ochsenfurt;;kasse@tsv-ochsenfurt.example;;;
+K1007;Steuerbüro Lehmann & Partner;Frau Lehmann;Juliuspromenade 40;97070;Würzburg;;kanzlei@lehmann-partner.example;0931 35 44 0;;19
