@@ -81,3 +81,13 @@ test('invoice for a customer of another account', async function () {
   var res = await call('POST', '/api/v1/invoices', { customer_id: 1, items: [] });
   assert.strictEqual(res.status, 400);
 });
+
+test('imported account', async function () {
+  cookie = '';
+  var res = await call('POST', '/api/v1/auth/login', { email: 'anna@druckerei-albers.example', password: 'rechnungen' });
+  assert.strictEqual(res.status, 200);
+  var list = await call('GET', '/api/v1/customers');
+  assert.strictEqual(list.body.length, 7);
+  var inv = await call('GET', '/api/v1/invoices/by-number/RE-2021-0087');
+  assert.strictEqual(inv.body.customer.name, 'Krause GmbH');
+});

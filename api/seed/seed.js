@@ -4,6 +4,8 @@ const invoices = require('../services/invoices');
 const customers = require('../services/customers');
 const auth = require('../lib/auth');
 const addDays = require('../lib/utils').addDays;
+const path = require('path');
+const importer = require('../scripts/import-legacy');
 
 var CUSTOMERS = [
   { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
@@ -67,6 +69,20 @@ function seed() {
   });
 
   console.log('[seed] ' + CUSTOMERS.length + ' customers, ' + INVOICES.length + ' invoices');
+
+  seedAlbers(conn);
+}
+
+// account 2: first customer from the old desktop program, data comes from its csv export
+function seedAlbers(conn) {
+  conn.prepare('INSERT INTO accounts (id, name, street, zip, city, iban, tax_number, email, plan) VALUES (2, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('Druckerei Albers KG', 'Nürnberger Str. 88', '97076', 'Würzburg', 'DE45 7905 0000 0042 1876 33', '257/141/30552',
+      'info@druckerei-albers.example', 'pro');
+  var addUser = conn.prepare('INSERT INTO users (account_id, email, name, password_hash, role) VALUES (2, ?, ?, ?, ?)');
+  addUser.run('anna@druckerei-albers.example', 'Anna Albers', auth.hashPasswordSync('rechnungen'), 'admin');
+  addUser.run('buchhaltung@druckerei-albers.example', 'Buchhaltung', auth.hashPasswordSync('rechnungen'), 'user');
+  var stats = importer.importDir(path.join(__dirname, 'legacy'), 2);
+  console.log('[seed] Druckerei Albers: ' + stats.customers + ' customers, ' + stats.invoices + ' invoices imported');
 }
 
 if (require.main === module) {
