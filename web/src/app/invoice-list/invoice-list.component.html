@@ -1,0 +1,43 @@
+<h1>Rechnungen</h1>
+
+<div class="summary" *ngIf="summary">
+  <span>Offen: <b>{{ summary.open_count }}</b> ({{ summary.open_gross | euro }})</span>
+  <span [class.overdue]="summary.overdue_count">Überfällig: <b>{{ summary.overdue_count }}</b> ({{ summary.overdue_gross | euro }})</span>
+  <span>Bezahlt dieses Jahr: <b>{{ summary.paid_this_year | euro }}</b></span>
+  <span class="muted">Entwürfe: {{ summary.draft_count }}</span>
+</div>
+
+<div class="toolbar">
+  <input type="search" placeholder="Nummer oder Kunde" [(ngModel)]="q" (keyup.enter)="load()">
+  <select [(ngModel)]="status" (change)="load()">
+    <option value="">Alle</option>
+    <option value="draft">Entwürfe</option>
+    <option value="issued">Gestellt</option>
+    <option value="paid">Bezahlt</option>
+    <option value="cancelled">Storniert</option>
+  </select>
+  <button class="secondary" (click)="load()">Suchen</button>
+  <span class="muted" *ngIf="loading">lädt ...</span>
+</div>
+
+<p class="error" *ngIf="error">{{ error }}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Nummer</th><th>Kunde</th><th>Datum</th><th>Fällig</th><th>Status</th><th class="num">Brutto</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let inv of invoices">
+      <td>{{ inv.number || '(Entwurf)' }}</td>
+      <td>{{ inv.customer_name }}</td>
+      <td>{{ inv.issue_date | dateDe }}</td>
+      <td>{{ inv.due_date | dateDe }}</td>
+      <td><span class="status status-{{ inv.status }}">{{ inv.status | status }}</span></td>
+      <td class="num">{{ inv.total_gross | euro }}</td>
+      <td><a [href]="pdfUrl(inv)" target="_blank">PDF</a></td>
+    </tr>
+    <tr *ngIf="!loading && !invoices.length"><td colspan="7" class="muted">Keine Rechnungen</td></tr>
+  </tbody>
+</table>

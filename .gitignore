@@ -5,3 +5,4 @@ api/data/
 .env
 .DS_Store
 *.log
+web/dist/

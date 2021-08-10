@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev:api": "npm run dev -w api",
+    "dev:web": "npm --prefix web start",
     "test": "npm test -w api",
     "db:reset": "npm run db:reset -w api"
   },
