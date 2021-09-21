@@ -33,3 +33,4 @@ button:disabled { opacity: .5; cursor: default; }
 .muted { color: #889; }
 .summary { display: flex; gap: 22px; margin-bottom: 14px; }
 .summary b { font-size: 16px; }
+.toolbar .spacer { flex: 1; }

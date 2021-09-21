@@ -1,0 +1,41 @@
+<h1>{{ customer.id ? customer.name : 'Neuer Kunde' }}</h1>
+
+<form class="card" (ngSubmit)="save()">
+  <div class="form-row">
+    <label>Name <input name="name" [(ngModel)]="customer.name" required size="40"></label>
+    <label>Ansprechpartner <input name="contact_name" [(ngModel)]="customer.contact_name"></label>
+  </div>
+  <div class="form-row">
+    <label>Straße <input name="street" [(ngModel)]="customer.street" size="30"></label>
+    <label>PLZ <input name="zip" [(ngModel)]="customer.zip" size="6"></label>
+    <label>Ort <input name="city" [(ngModel)]="customer.city"></label>
+  </div>
+  <div class="form-row">
+    <label>E-Mail <input name="email" type="email" [(ngModel)]="customer.email" size="30"></label>
+    <label>Telefon <input name="phone" [(ngModel)]="customer.phone"></label>
+    <label>USt-IdNr. <input name="vat_id" [(ngModel)]="customer.vat_id"></label>
+  </div>
+  <p class="error" *ngIf="error">{{ error }}</p>
+  <p class="ok" *ngIf="saved">Gespeichert</p>
+  <div class="toolbar">
+    <button type="submit">Speichern</button>
+    <button type="button" class="secondary" (click)="back()">Zurück</button>
+    <button type="button" class="danger" *ngIf="customer.id" (click)="remove()">Löschen</button>
+  </div>
+</form>
+
+<div *ngIf="customer.id">
+  <h2>Rechnungen</h2>
+  <table>
+    <thead><tr><th>Nummer</th><th>Datum</th><th>Status</th><th class="num">Brutto</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let inv of invoices">
+        <td>{{ inv.number || '(Entwurf)' }}</td>
+        <td>{{ inv.issue_date | dateDe }}</td>
+        <td><span class="status status-{{ inv.status }}">{{ inv.status | status }}</span></td>
+        <td class="num">{{ inv.total_gross | euro }}</td>
+      </tr>
+      <tr *ngIf="!invoices.length"><td colspan="4" class="muted">Noch keine Rechnungen</td></tr>
+    </tbody>
+  </table>
+</div>

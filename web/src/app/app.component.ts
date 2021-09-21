@@ -9,6 +9,7 @@ import { post } from '../api/client.js';
     <header class="top" *ngIf="user()">
       <strong>Rechnungen</strong>
       <a routerLink="/invoices" routerLinkActive="active">Rechnungen</a>
+      <a routerLink="/customers" routerLinkActive="active">Kunden</a>
       <span class="spacer"></span>
       <span class="muted">{{ user()?.account_name }}</span>
       <span>{{ user()?.name || user()?.email }}</span>
