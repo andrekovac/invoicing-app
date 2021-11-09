@@ -108,6 +108,18 @@ test('create customer and invoice, issue it', async function () {
   assert.strictEqual(again.status, 409);
 });
 
+test('issued invoice: change texts, totals stay', async function () {
+  var inv = (await call('GET', '/api/v1/invoices/by-number/RE-2021-0001')).body;
+  var items = inv.items.map(function (it) {
+    return { description: it.description + ' (Korrektur)', quantity: it.quantity, unit_price: it.unit_price };
+  });
+  var res = await call('PUT', '/api/v1/invoices/' + inv.id, { items: items, due_date: '2021-03-01' });
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.due_date, '2021-03-01');
+  assert.strictEqual(res.body.total_gross, inv.total_gross);
+  assert.match(res.body.items[0].description, /Korrektur/);
+});
+
 test('invoice needs a customer', async function () {
   var res = await call('POST', '/api/v1/invoices', { items: [] });
   assert.strictEqual(res.status, 400);

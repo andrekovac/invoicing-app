@@ -129,8 +129,11 @@ router.put('/:id', function (req, res) {
   var inv = ownInvoice(req, res);
   if (!inv) return;
   var id = inv.id;
-  if (inv.status !== 'draft') return res.status(409).json({ error: 'gestellte Rechnungen können nicht geändert werden' });
+  if (inv.status === 'cancelled') return res.status(409).json({ error: 'stornierte Rechnungen können nicht geändert werden' });
   var body = req.body || {};
+  if (inv.status !== 'draft' && body.items && body.items.length !== invoices.itemsFor(id).length) {
+    return res.status(409).json({ error: 'bei gestellten Rechnungen nur Texte ändern, keine Positionen' });
+  }
   if (body.items) {
     var err = checkItems(body.items);
     if (err) return res.status(400).json({ error: err });

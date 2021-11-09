@@ -118,15 +118,20 @@ function update(id, data) {
   var inv = findById(id);
   if (!inv) return null;
   var c = conn();
-  var vat = data.vat_rate !== undefined ? Number(data.vat_rate) : inv.vat_rate;
-  var discount = data.discount_percent !== undefined ? (Number(data.discount_percent) || 0) : inv.discount_percent;
+  // issued invoices keep their totals: the amount went out to the customer already.
+  // texts, dates, note and the items (wording) can still be corrected
+  var keepTotals = inv.status !== 'draft';
+  var vat = data.vat_rate !== undefined && !keepTotals ? Number(data.vat_rate) : inv.vat_rate;
+  var discount = data.discount_percent !== undefined && !keepTotals ? (Number(data.discount_percent) || 0) : inv.discount_percent;
   c.exec('BEGIN');
   try {
     if (data.items) {
       c.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(id);
       insertItems(id, data.items);
     }
-    var totals = computeTotals(itemsFor(id), vat, discount);
+    var totals = keepTotals
+      ? { total_net: inv.total_net, total_tax: inv.total_tax, total_gross: inv.total_gross }
+      : computeTotals(itemsFor(id), vat, discount);
     c.prepare('UPDATE invoices SET customer_id = ?, issue_date = ?, due_date = ?, vat_rate = ?, discount_percent = ?, note = ?, total_net = ?, total_tax = ?, total_gross = ?, updated_at = ? WHERE id = ?')
       .run(data.customer_id !== undefined ? Number(data.customer_id) : inv.customer_id,
         data.issue_date !== undefined ? data.issue_date : inv.issue_date,
