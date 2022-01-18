@@ -13,16 +13,17 @@ import { CustomerService, Customer } from '../services/customer.service';
       <button (click)="router.navigate(['/customers', 'new'])">Neuer Kunde</button>
     </div>
     <table>
-      <thead><tr><th>Name</th><th>Ansprechpartner</th><th>Ort</th><th>E-Mail</th><th>Alt-Nr.</th></tr></thead>
+      <thead><tr><th>Name</th><th>Ansprechpartner</th><th>Ort</th><th>Land</th><th>E-Mail</th><th>Alt-Nr.</th></tr></thead>
       <tbody>
         <tr class="click" *ngFor="let c of customers" (click)="router.navigate(['/customers', c.id])">
           <td>{{ c.name }}</td>
           <td>{{ c.contact_name }}</td>
           <td>{{ c.zip }} {{ c.city }}</td>
+          <td>{{ c.country }}</td>
           <td>{{ c.email }}</td>
           <td class="muted">{{ c.legacy_no }}</td>
         </tr>
-        <tr *ngIf="!customers.length"><td colspan="5" class="muted">Keine Kunden gefunden</td></tr>
+        <tr *ngIf="!customers.length"><td colspan="6" class="muted">Keine Kunden gefunden</td></tr>
       </tbody>
     </table>
   `

@@ -213,3 +213,13 @@ test('users need admin', async function () {
   var res2 = await call('GET', '/api/v1/admin/users');
   assert.strictEqual(res2.status, 403);
 });
+
+test('customer with country and default tax rate', async function () {
+  await call('POST', '/api/v1/auth/login', { email: 'jonas@agentur-brandt.example', password: 'rechnungen' });
+  var res = await call('POST', '/api/v1/customers', { name: 'Buchhandlung Lesezeit', city: 'Wien', country: 'Österreich', default_tax_rate: '7' });
+  assert.strictEqual(res.status, 201);
+  assert.strictEqual(res.body.country, 'Österreich');
+  assert.strictEqual(res.body.default_tax_rate, 7);
+  var bad = await call('PUT', '/api/v1/customers/' + res.body.id, { default_tax_rate: 16 });
+  assert.strictEqual(bad.status, 400);
+});

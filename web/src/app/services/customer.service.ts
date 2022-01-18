@@ -9,6 +9,8 @@ export interface Customer {
   street?: string | null;
   zip?: string | null;
   city?: string | null;
+  country?: string | null;
+  default_tax_rate?: number | null;
   email?: string | null;
   phone?: string | null;
   vat_id?: string | null;

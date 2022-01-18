@@ -9,11 +9,20 @@
     <label>Straße <input name="street" [(ngModel)]="customer.street" size="30"></label>
     <label>PLZ <input name="zip" [(ngModel)]="customer.zip" size="6"></label>
     <label>Ort <input name="city" [(ngModel)]="customer.city"></label>
+    <label>Land <input name="country" [(ngModel)]="customer.country" placeholder="Deutschland"></label>
   </div>
   <div class="form-row">
     <label>E-Mail <input name="email" type="email" [(ngModel)]="customer.email" size="30"></label>
     <label>Telefon <input name="phone" [(ngModel)]="customer.phone"></label>
     <label>USt-IdNr. <input name="vat_id" [(ngModel)]="customer.vat_id"></label>
+    <label>Standard-Steuersatz
+      <select name="default_tax_rate" [(ngModel)]="customer.default_tax_rate">
+        <option [ngValue]="null">-</option>
+        <option [ngValue]="19">19 %</option>
+        <option [ngValue]="7">7 %</option>
+        <option [ngValue]="0">0 % (Reverse Charge)</option>
+      </select>
+    </label>
   </div>
   <p class="error" *ngIf="error">{{ error }}</p>
   <p class="ok" *ngIf="saved">Gespeichert</p>

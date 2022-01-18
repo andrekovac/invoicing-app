@@ -2,6 +2,7 @@ const express = require('express');
 const customers = require('../services/customers');
 const invoices = require('../services/invoices');
 const auth = require('../lib/auth');
+const pricing = require('../lib/pricing');
 
 const router = express.Router();
 router.use(auth.requireLogin);
@@ -14,6 +15,17 @@ function own(req, res) {
     return null;
   }
   return c;
+}
+
+// default tax rate: empty = none (then the invoice form uses 19 %)
+function checkTaxRate(body) {
+  if (body.default_tax_rate === undefined) return true;
+  if (body.default_tax_rate === '' || body.default_tax_rate === null) {
+    body.default_tax_rate = null;
+    return true;
+  }
+  body.default_tax_rate = Number(body.default_tax_rate);
+  return pricing.isValidRate(body.default_tax_rate);
 }
 
 router.get('/', function (req, res) {
@@ -41,6 +53,8 @@ router.post('/', function (req, res) {
   if (body.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) {
     return res.status(400).json({ error: 'E-Mail ungültig' });
   }
+  if (!checkTaxRate(body)) return res.status(400).json({ error: 'Steuersatz ungültig' });
+  if (body.country) body.country = String(body.country).trim();
   res.status(201).json(customers.create(req.accountId, body));
 });
 
@@ -51,6 +65,7 @@ router.put('/:id', function (req, res) {
   if (req.body.name !== undefined && !String(req.body.name).trim()) {
     return res.status(400).json({ error: 'Name fehlt' });
   }
+  if (!checkTaxRate(req.body)) return res.status(400).json({ error: 'Steuersatz ungültig' });
   res.json(customers.update(id, req.body || {}));
 });
 

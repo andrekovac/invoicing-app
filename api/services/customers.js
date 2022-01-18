@@ -1,6 +1,6 @@
 const db = require('../db');
 
-const FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'email', 'phone', 'vat_id'];
+const FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'country', 'email', 'phone', 'vat_id', 'default_tax_rate'];
 
 function list(accountId, q) {
   var sql = 'SELECT * FROM customers WHERE account_id = ?';

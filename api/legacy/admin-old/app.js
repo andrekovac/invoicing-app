@@ -278,7 +278,7 @@
 
   // ---------- customers ----------
 
-  var CUST_FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'email', 'phone', 'vat_id'];
+  var CUST_FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'country', 'email', 'phone', 'vat_id'];
 
   function loadCustomers() {
     var q = $('cust-q').value.trim();
