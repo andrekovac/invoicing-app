@@ -7,6 +7,7 @@ const pdf = require('../lib/pdf');
 const db = require('../db');
 const auth = require('../lib/auth');
 const utils = require('../lib/utils');
+const payments = require('../services/payments');
 
 const router = express.Router();
 
@@ -161,6 +162,9 @@ router.post('/:id/paid', function (req, res) {
   if (inv.status !== 'issued') return res.status(409).json({ error: 'nur gestellte Rechnungen können bezahlt werden' });
   var paidAt = req.body && req.body.paid_at;
   if (paidAt && !utils.isDate(paidAt)) return res.status(400).json({ error: 'Datum ungültig' });
+  // rest as one transfer, so the payments add up
+  var open = payments.openAmount(inv);
+  if (open > 0) payments.recordPayment(inv, { amount: open, method: 'transfer', paid_at: paidAt, user_id: req.user.id });
   res.json(invoices.markPaid(id, paidAt));
 });
 

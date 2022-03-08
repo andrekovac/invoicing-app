@@ -42,7 +42,9 @@ function getById(id) {
 
 function list(accountId, opts) {
   opts = opts || {};
-  var sql = 'SELECT i.*, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.account_id = ?';
+  var sql = 'SELECT i.*, c.name AS customer_name, ' +
+    '(SELECT coalesce(sum(p.amount), 0) FROM payments p WHERE p.invoice_id = i.id) AS paid_amount ' +
+    'FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.account_id = ?';
   var args = [accountId];
   if (opts.status) {
     sql += ' AND i.status = ?';

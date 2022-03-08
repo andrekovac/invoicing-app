@@ -41,6 +41,42 @@ function recordPayment(inv, data) {
   return conn().prepare('SELECT * FROM payments WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
+function findById(id) {
+  return conn().prepare('SELECT * FROM payments WHERE id = ?').get(id);
+}
+
+// wrong entry: remove it, a paid invoice is open again
+function removePayment(p) {
+  conn().prepare('DELETE FROM payments WHERE id = ?').run(p.id);
+  const inv = invoices.findById(p.invoice_id);
+  if (inv && inv.status === 'paid' && paidAmount(inv.id) < money.round2(inv.total_gross)) {
+    conn().prepare("UPDATE invoices SET status = 'issued', paid_at = NULL WHERE id = ?").run(inv.id);
+  }
+}
+
+// all payments of the account, newest first (for the payments page)
+function list(accountId, opts) {
+  opts = opts || {};
+  let sql = 'SELECT p.*, i.number, c.name AS customer_name FROM payments p JOIN invoices i ON i.id = p.invoice_id ' +
+    'JOIN customers c ON c.id = i.customer_id WHERE p.account_id = ?';
+  const args = [accountId];
+  if (opts.method) {
+    sql += ' AND p.method = ?';
+    args.push(opts.method);
+  }
+  if (opts.from) {
+    sql += ' AND p.paid_at >= ?';
+    args.push(opts.from);
+  }
+  if (opts.to) {
+    sql += ' AND p.paid_at <= ?';
+    args.push(opts.to);
+  }
+  sql += ' ORDER BY p.paid_at DESC, p.id DESC LIMIT 500';
+  const stmt = conn().prepare(sql);
+  return stmt.all.apply(stmt, args);
+}
+
 function logAttempt(accountId, invs, amount, status, error, ref) {
   conn().prepare('INSERT INTO card_attempts (account_id, invoice_ids, amount, status, error, provider_ref) VALUES (?, ?, ?, ?, ?, ?)')
     .run(accountId, invs.map(i => i.id).join(','), amount, status, error || null, ref || null);
@@ -88,6 +124,9 @@ async function startCardPayment(invs, card) {
 }
 
 module.exports = {
+  list,
+  findById,
+  removePayment,
   forInvoice,
   paidAmount,
   openAmount,

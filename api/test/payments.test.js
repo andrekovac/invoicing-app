@@ -54,3 +54,29 @@ test('card payment marks invoice paid', async function () {
   assert.strictEqual(invoices.findById(inv.id).status, 'paid');
   assert.strictEqual(payments.forInvoice(inv.id)[0].method, 'card');
 });
+
+test('partial transfers', function () {
+  var inv = openInvoice(200);
+  payments.recordPayment(inv, { amount: 100, paid_at: '2022-03-01' });
+  assert.strictEqual(payments.openAmount(invoices.findById(inv.id)), 138);
+  assert.strictEqual(invoices.findById(inv.id).status, 'issued');
+  payments.recordPayment(inv, { amount: 138, paid_at: '2022-03-05' });
+  var after = invoices.findById(inv.id);
+  assert.strictEqual(after.status, 'paid');
+  assert.strictEqual(after.paid_at, '2022-03-05');
+  assert.strictEqual(payments.paidAmount(inv.id), money.round2(pricing.gross(200, 19)));
+});
+
+test('remove payment opens the invoice again', function () {
+  var inv = openInvoice(50);
+  var p = payments.recordPayment(inv, { amount: 59.5 });
+  assert.strictEqual(invoices.findById(inv.id).status, 'paid');
+  payments.removePayment(p);
+  assert.strictEqual(invoices.findById(inv.id).status, 'issued');
+});
+
+test('list payments of the account', function () {
+  var rows = payments.list(1);
+  assert.ok(rows.length >= 3);
+  assert.ok(rows[0].number);
+});
