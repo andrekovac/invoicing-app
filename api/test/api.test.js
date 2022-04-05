@@ -223,3 +223,24 @@ test('customer with country and default tax rate', async function () {
   var bad = await call('PUT', '/api/v1/customers/' + res.body.id, { default_tax_rate: 16 });
   assert.strictEqual(bad.status, 400);
 });
+
+test('payment link', async function () {
+  var c = await call('POST', '/api/v1/customers', { name: 'Link Kunde GmbH', city: 'Köln', country: 'Deutschland' });
+  var inv = await call('POST', '/api/v1/invoices', { customer_id: c.body.id, items: [{ description: 'Beratungstag', quantity: 1, unit_price: 400 }] });
+  await call('POST', '/api/v1/invoices/' + inv.body.id + '/issue');
+  var link = await call('POST', '/api/v1/payments/link', { invoice_id: inv.body.id });
+  assert.strictEqual(link.status, 201);
+  assert.match(link.body.url, /\/pay\//);
+
+  var info = await call('GET', '/api/v1/payments/link/' + link.body.token, undefined, true);
+  assert.strictEqual(info.status, 200);
+  assert.strictEqual(info.body.open, 476);
+  assert.strictEqual(info.body.account_name, 'Agentur Brandt');
+
+  var pay = await call('POST', '/api/v1/payments/link/' + link.body.token + '/card', {
+    card: { number: '4242424242424242', exp_month: 12, exp_year: 2099, cvc: '123' }
+  }, true);
+  assert.strictEqual(pay.status, 201);
+  var after = await call('GET', '/api/v1/invoices/' + inv.body.id);
+  assert.strictEqual(after.body.status, 'paid');
+});

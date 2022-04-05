@@ -80,3 +80,16 @@ test('list payments of the account', function () {
   assert.ok(rows.length >= 3);
   assert.ok(rows[0].number);
 });
+
+test('payment link token', function () {
+  var links = require('../services/payment-links');
+  var inv = openInvoice(10);
+  var link = links.create(inv, 7);
+  var data = links.verify(link.token);
+  assert.strictEqual(data.invoice_id, inv.id);
+  assert.strictEqual(data.account_id, 1);
+  assert.ok(new Date(link.expires_at) > new Date());
+  var portal = links.createPortal(customer);
+  assert.strictEqual(links.verify(portal.token), null);
+  assert.strictEqual(links.verifyPortal(portal.token).customer_id, customer.id);
+});
