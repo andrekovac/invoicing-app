@@ -11,10 +11,17 @@ function now() {
   return new Date().toISOString().replace('T', ' ').slice(0, 19);
 }
 
-function computeTotals(items, vatRate, discountPercent) {
+// tax rate in percent. old clients (admin-old) still send vat_rate as decimal (0.19)
+function rateFrom(data, fallback) {
+  if (data.tax_rate !== undefined && data.tax_rate !== null && data.tax_rate !== '') return Number(data.tax_rate);
+  if (data.vat_rate !== undefined && data.vat_rate !== null) return Math.round(Number(data.vat_rate) * 100);
+  return fallback;
+}
+
+function computeTotals(items, taxRate, discountPercent) {
   var net = pricing.sumItems(items);
   if (discountPercent) net = net * (1 - discountPercent / 100);
-  var totalGross = money.round2(pricing.gross(net, vatRate * 100));
+  var totalGross = money.round2(pricing.gross(net, taxRate));
   var totalNet = money.round2(net);
   return {
     total_net: totalNet,
@@ -70,12 +77,12 @@ function summary(accountId) {
   var open = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued'").get(accountId);
   var overdue = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued' AND due_date < ?").get(accountId, today);
   var paid = c.prepare("SELECT coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'paid' AND substr(paid_at, 1, 4) = ?").get(accountId, today.slice(0, 4));
-  var drafts = c.prepare("SELECT id, vat_rate, discount_percent FROM invoices WHERE account_id = ? AND status = 'draft'").all(accountId);
+  var drafts = c.prepare("SELECT id, tax_rate, discount_percent FROM invoices WHERE account_id = ? AND status = 'draft'").all(accountId);
   // drafts are not in the stored totals yet when items were edited by hand, so compute them
   var draftSum = drafts.reduce(function (sum, d) {
     var net = pricing.sumItems(itemsFor(d.id));
     if (d.discount_percent) net = net * (1 - d.discount_percent / 100);
-    return sum + pricing.gross(net, d.vat_rate * 100);
+    return sum + pricing.gross(net, d.tax_rate);
   }, 0);
   return {
     open_count: open.n,
@@ -97,14 +104,15 @@ function insertItems(invoiceId, items) {
 
 function create(accountId, data) {
   var items = data.items || [];
-  var vat = data.vat_rate !== undefined ? Number(data.vat_rate) : 0.19;
+  var rate = rateFrom(data, 19);
   var discount = Number(data.discount_percent) || 0;
-  var totals = computeTotals(items, vat, discount);
+  var totals = computeTotals(items, rate, discount);
   var c = conn();
   c.exec('BEGIN');
   try {
-    var info = c.prepare('INSERT INTO invoices (account_id, customer_id, status, issue_date, due_date, vat_rate, discount_percent, note, total_net, total_tax, total_gross) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(accountId, Number(data.customer_id), 'draft', data.issue_date || null, data.due_date || null, vat, discount,
+    // legacy_tax_rate too, for the DATEV export
+    var info = c.prepare('INSERT INTO invoices (account_id, customer_id, status, issue_date, due_date, tax_rate, legacy_tax_rate, discount_percent, note, total_net, total_tax, total_gross) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(accountId, Number(data.customer_id), 'draft', data.issue_date || null, data.due_date || null, rate, rate / 100, discount,
         data.note || null, totals.total_net, totals.total_tax, totals.total_gross);
     var id = Number(info.lastInsertRowid);
     insertItems(id, items);
@@ -123,7 +131,7 @@ function update(id, data) {
   // issued invoices keep their totals: the amount went out to the customer already.
   // texts, dates, note and the items (wording) can still be corrected
   var keepTotals = inv.status !== 'draft';
-  var vat = data.vat_rate !== undefined && !keepTotals ? Number(data.vat_rate) : inv.vat_rate;
+  var rate = keepTotals ? inv.tax_rate : rateFrom(data, inv.tax_rate);
   var discount = data.discount_percent !== undefined && !keepTotals ? (Number(data.discount_percent) || 0) : inv.discount_percent;
   c.exec('BEGIN');
   try {
@@ -133,12 +141,12 @@ function update(id, data) {
     }
     var totals = keepTotals
       ? { total_net: inv.total_net, total_tax: inv.total_tax, total_gross: inv.total_gross }
-      : computeTotals(itemsFor(id), vat, discount);
-    c.prepare('UPDATE invoices SET customer_id = ?, issue_date = ?, due_date = ?, vat_rate = ?, discount_percent = ?, note = ?, total_net = ?, total_tax = ?, total_gross = ?, updated_at = ? WHERE id = ?')
+      : computeTotals(itemsFor(id), rate, discount);
+    c.prepare('UPDATE invoices SET customer_id = ?, issue_date = ?, due_date = ?, tax_rate = ?, legacy_tax_rate = ?, discount_percent = ?, note = ?, total_net = ?, total_tax = ?, total_gross = ?, updated_at = ? WHERE id = ?')
       .run(data.customer_id !== undefined ? Number(data.customer_id) : inv.customer_id,
         data.issue_date !== undefined ? data.issue_date : inv.issue_date,
         data.due_date !== undefined ? data.due_date : inv.due_date,
-        vat, discount,
+        rate, rate / 100, discount,
         data.note !== undefined ? data.note : inv.note,
         totals.total_net, totals.total_tax, totals.total_gross, now(), id);
     c.exec('COMMIT');
@@ -202,7 +210,7 @@ function duplicate(id) {
   if (!inv) return null;
   return create(inv.account_id, {
     customer_id: inv.customer_id,
-    vat_rate: inv.vat_rate,
+    tax_rate: inv.tax_rate,
     discount_percent: inv.discount_percent,
     items: inv.items.map(function (it) {
       return { description: it.description, quantity: it.quantity, unit_price: it.unit_price };
@@ -244,6 +252,7 @@ function remove(id) {
 }
 
 module.exports = {
+  rateFrom: rateFrom,
   computeTotals: computeTotals,
   findById: findById,
   getById: getById,

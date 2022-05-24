@@ -15,21 +15,21 @@ var CUSTOMERS = [
   { name: 'Café Rosenrot', street: 'Kasernenstr. 6', zip: '40213', city: 'Düsseldorf', email: 'hallo@cafe-rosenrot.example' }
 ];
 
-// [customer index, issue date, status, vat, items, extra]
+// [customer index, issue date, status, tax rate %, items, extra]
 var INVOICES = [
-  [0, '2020-01-14', 'paid', 0.19, [['Website Relaunch, Konzept', 1, 1450], ['Fotografie Produkte (halber Tag)', 1, 380]]],
-  [1, '2020-01-28', 'paid', 0.19, [['Exposé Vorlage InDesign', 1, 640], ['Druckdaten Aufbereitung', 3, 65]], { note: 'Zahlt immer spät, Mahnung sofort raus' }],
-  [2, '2020-02-03', 'paid', 0.19, [['Wartung Website Februar', 1, 120], ['Hosting Q1', 3, 14.9]]],
-  [3, '2020-02-11', 'paid', 0.19, [['Online Terminbuchung Einrichtung', 1, 890], ['Schulung Praxisteam', 2, 95]]],
-  [4, '2020-02-17', 'paid', 0.19, [['Speisekarte Layout', 1, 280], ['Speisekarte Druck 200 Stk.', 200, 1.35]], { discount_percent: 5, note: 'Stammkunde, 5 % Rabatt vereinbart' }],
-  [2, '2020-05-04', 'paid', 0.19, [['Wartung Website Mai', 1, 120], ['Hosting Q2', 3, 14.9]]],
-  [1, '2020-06-15', 'paid', 0.19, [['Social Media Paket Juni', 1, 450]], { note: 'Zahlt immer spät, Mahnung sofort raus' }],
-  [3, '2020-09-21', 'paid', 0.19, [['Hygienekonzept Aushänge (Layout)', 4, 35], ['Website Hinweisbanner', 1, 60]]],
-  [0, '2020-11-30', 'issued', 0.19, [['Weihnachtsflyer', 1, 190], ['Druck 500 Stk.', 500, 0.18]]],
-  [4, '2020-12-08', 'issued', 0.19, [['Online Bestellseite (Abholung)', 1, 980]], { discount_percent: 5 }],
-  [1, '2021-01-18', 'issued', 0.19, [['Exposé Vorlage Gewerbe', 1, 520], ['Fotos Objekt Kessenich', 1, 240]], { note: 'Zahlt immer spät, Mahnung sofort raus. Mia Schulz direkt anrufen' }],
-  [2, '2021-02-01', 'draft', 0.19, [['Wartung Website Februar', 1, 125], ['Hosting Q1', 3, 14.9]]],
-  [4, '2021-02-05', 'draft', 0.07, [['Speisekarte Druck 100 Stk.', 100, 1.4]], { note: 'Steuersatz klären (Druckerzeugnis?)' }]
+  [0, '2020-01-14', 'paid', 19, [['Website Relaunch, Konzept', 1, 1450], ['Fotografie Produkte (halber Tag)', 1, 380]]],
+  [1, '2020-01-28', 'paid', 19, [['Exposé Vorlage InDesign', 1, 640], ['Druckdaten Aufbereitung', 3, 65]], { note: 'Zahlt immer spät, Mahnung sofort raus' }],
+  [2, '2020-02-03', 'paid', 19, [['Wartung Website Februar', 1, 120], ['Hosting Q1', 3, 14.9]]],
+  [3, '2020-02-11', 'paid', 19, [['Online Terminbuchung Einrichtung', 1, 890], ['Schulung Praxisteam', 2, 95]]],
+  [4, '2020-02-17', 'paid', 19, [['Speisekarte Layout', 1, 280], ['Speisekarte Druck 200 Stk.', 200, 1.35]], { discount_percent: 5, note: 'Stammkunde, 5 % Rabatt vereinbart' }],
+  [2, '2020-05-04', 'paid', 19, [['Wartung Website Mai', 1, 120], ['Hosting Q2', 3, 14.9]]],
+  [1, '2020-06-15', 'paid', 19, [['Social Media Paket Juni', 1, 450]], { note: 'Zahlt immer spät, Mahnung sofort raus' }],
+  [3, '2020-09-21', 'paid', 19, [['Hygienekonzept Aushänge (Layout)', 4, 35], ['Website Hinweisbanner', 1, 60]]],
+  [0, '2020-11-30', 'issued', 19, [['Weihnachtsflyer', 1, 190], ['Druck 500 Stk.', 500, 0.18]]],
+  [4, '2020-12-08', 'issued', 19, [['Online Bestellseite (Abholung)', 1, 980]], { discount_percent: 5 }],
+  [1, '2021-01-18', 'issued', 19, [['Exposé Vorlage Gewerbe', 1, 520], ['Fotos Objekt Kessenich', 1, 240]], { note: 'Zahlt immer spät, Mahnung sofort raus. Mia Schulz direkt anrufen' }],
+  [2, '2021-02-01', 'draft', 19, [['Wartung Website Februar', 1, 125], ['Hosting Q1', 3, 14.9]]],
+  [4, '2021-02-05', 'draft', 7, [['Speisekarte Druck 100 Stk.', 100, 1.4]], { note: 'Steuersatz klären (Druckerzeugnis?)' }]
 ];
 
 function seed() {
@@ -53,7 +53,7 @@ function seed() {
     var inv = invoices.create(1, {
       customer_id: ids[row[0]],
       issue_date: row[1],
-      vat_rate: row[3],
+      tax_rate: row[3],
       discount_percent: extra.discount_percent,
       note: extra.note,
       items: row[4].map(function (it) {

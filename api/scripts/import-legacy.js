@@ -129,7 +129,7 @@ function importDir(dir, accountId, opts) {
   const findCustomer = c.prepare('SELECT id FROM customers WHERE account_id = ? AND legacy_no = ?');
   const addCustomer = c.prepare('INSERT INTO customers (account_id, legacy_no, name, contact_name, street, zip, city, country, email, phone, vat_id, default_tax_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const findInvoice = c.prepare('SELECT id FROM invoices WHERE account_id = ? AND legacy_no = ?');
-  const addInvoice = c.prepare('INSERT INTO invoices (account_id, customer_id, legacy_no, number, status, issue_date, due_date, paid_at, vat_rate, discount_percent, note, total_net, total_tax, total_gross, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const addInvoice = c.prepare('INSERT INTO invoices (account_id, customer_id, legacy_no, number, status, issue_date, due_date, paid_at, tax_rate, legacy_tax_rate, discount_percent, note, total_net, total_tax, total_gross, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const addItem = c.prepare('INSERT INTO invoice_items (invoice_id, position, description, quantity, unit_price) VALUES (?, ?, ?, ?, ?)');
 
   c.exec('BEGIN');
@@ -155,7 +155,7 @@ function importDir(dir, accountId, opts) {
       }
       const t = r.totals;
       const info = addInvoice.run(accountId, ids[r.customer_no], r.legacy_no, r.number, r.status, r.issue_date, r.due_date,
-        r.status === 'paid' ? r.paid_at : null, r.rate / 100, r.discount_percent, r.note,
+        r.status === 'paid' ? r.paid_at : null, r.rate, r.rate / 100, r.discount_percent, r.note,
         t.total_net, t.total_tax, t.total_gross, (r.issue_date || '') + ' 12:00:00');
       const id = Number(info.lastInsertRowid);
       // unit_price exactly as exported, 4 decimals

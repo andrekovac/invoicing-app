@@ -28,12 +28,20 @@ function qty(n) {
   return String(Math.round(n * 100) / 100).replace('.', ',');
 }
 
+// invoices before 2022 were written with the decimal column only, print them like back then
+function rateFor(inv) {
+  if ((inv.tax_rate === null || inv.tax_rate === undefined) || (inv.issue_date && inv.issue_date < '2022-01-01' && inv.legacy_tax_rate !== null)) {
+    return Math.round(inv.legacy_tax_rate * 100);
+  }
+  return inv.tax_rate;
+}
+
 // totals are computed from the items again, so the pdf always matches its positions
 function totals(inv) {
   var sum = pricing.sumItems(inv.items);
   var discount = inv.discount_percent ? sum * inv.discount_percent / 100 : 0;
   var net = sum - discount;
-  var gross = money.round2(pricing.gross(net, inv.vat_rate * 100));
+  var gross = money.round2(pricing.gross(net, rateFor(inv)));
   return { sum: money.round2(sum), discount: money.round2(discount), net: money.round2(net), tax: money.round2(gross - money.round2(net)), gross: gross };
 }
 
@@ -41,7 +49,7 @@ function invoiceLines(inv, account) {
   account = account || {};
   var c = inv.customer || {};
   var lines = [];
-  var rate = Math.round(inv.vat_rate * 100);
+  var rate = rateFor(inv);
 
   lines.push(account.name || '');
   lines.push([account.street, [account.zip, account.city].join(' ').trim()].filter(Boolean).join(', '));
@@ -168,4 +176,4 @@ function invoicePdf(inv, account) {
   return render(invoiceLines(inv, account));
 }
 
-module.exports = { invoicePdf: invoicePdf, invoiceLines: invoiceLines, totals: totals, render: render };
+module.exports = { invoicePdf: invoicePdf, invoiceLines: invoiceLines, totals: totals, rateFor: rateFor, render: render };

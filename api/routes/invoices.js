@@ -84,10 +84,10 @@ router.post('/preview', function (req, res) {
   var body = req.body || {};
   var err = checkItems(body.items || []);
   if (err) return res.status(400).json({ error: err });
-  var vat = body.vat_rate !== undefined ? Number(body.vat_rate) : 0.19;
+  var rate = invoices.rateFrom(body, 19);
   var net = pricing.sumItems(body.items);
   if (body.discount_percent) net = net - net * Number(body.discount_percent) / 100;
-  var gross = money.round2(pricing.gross(net, vat * 100));
+  var gross = money.round2(pricing.gross(net, rate));
   res.json({
     total_net: money.round2(net),
     total_tax: money.round2(gross - net),
@@ -116,7 +116,7 @@ router.post('/', function (req, res) {
   }
   var err = checkItems(body.items || []);
   if (err) return res.status(400).json({ error: err });
-  if (body.vat_rate !== undefined && !pricing.isValidRate(Math.round(Number(body.vat_rate) * 100))) {
+  if (!pricing.isValidRate(invoices.rateFrom(body, 19))) {
     return res.status(400).json({ error: 'Steuersatz ungültig' });
   }
   if (!checkDiscount(body.discount_percent)) return res.status(400).json({ error: 'Rabatt ungültig' });

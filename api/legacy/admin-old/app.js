@@ -148,7 +148,7 @@
     var f = $('inv-form');
     return {
       customer_id: Number(f.customer_id.value),
-      vat_rate: Number(f.vat_rate.value),
+      tax_rate: Math.round(Number(f.vat_rate.value) * 100),
       issue_date: f.issue_date.value || null,
       due_date: f.due_date.value || null,
       discount_percent: num(f.discount_percent.value || '0'),
@@ -168,7 +168,7 @@
     previewTimer = setTimeout(function () {
       var valid = items.filter(function (it) { return it.description && !isNaN(it.quantity) && !isNaN(it.unit_price); });
       api('POST', '/invoices/preview', {
-        vat_rate: Number($('inv-form').vat_rate.value),
+        tax_rate: Math.round(Number($('inv-form').vat_rate.value) * 100),
         discount_percent: num($('inv-form').discount_percent.value || '0') || 0,
         items: valid
       }).then(function (t) {
@@ -185,7 +185,7 @@
     var isDraft = !inv.id || inv.status === 'draft';
     $('inv-title').textContent = inv.id ? ('Rechnung ' + (inv.number || '(Entwurf)') + ' - ' + STATUS[inv.status]) : 'Neue Rechnung';
     f.customer_id.value = inv.customer_id || (state.customers[0] && state.customers[0].id) || '';
-    f.vat_rate.value = String(inv.vat_rate === undefined ? 0.19 : inv.vat_rate);
+    f.vat_rate.value = String(inv.tax_rate === undefined || inv.tax_rate === null ? 0.19 : inv.tax_rate / 100);
     f.issue_date.value = inv.issue_date || '';
     f.due_date.value = inv.due_date || '';
     f.discount_percent.value = String(inv.discount_percent || 0).replace('.', ',');

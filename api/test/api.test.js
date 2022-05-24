@@ -244,3 +244,17 @@ test('payment link', async function () {
   var after = await call('GET', '/api/v1/invoices/' + inv.body.id);
   assert.strictEqual(after.body.status, 'paid');
 });
+
+test('tax rate in percent', async function () {
+  var inv = await call('POST', '/api/v1/invoices', {
+    customer_id: 1,
+    tax_rate: 7,
+    items: [{ description: 'Broschüre (Druckerzeugnis)', quantity: 10, unit_price: 12 }]
+  });
+  assert.strictEqual(inv.status, 201);
+  assert.strictEqual(inv.body.tax_rate, 7);
+  assert.strictEqual(inv.body.legacy_tax_rate, 0.07);
+  assert.strictEqual(inv.body.total_gross, 128.4);
+  var txt = await call('GET', '/api/v1/invoices/' + inv.body.id + '/pdf?format=txt');
+  assert.match(txt.body, /USt\. 7 %/);
+});

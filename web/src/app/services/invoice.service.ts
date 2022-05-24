@@ -10,6 +10,9 @@ export interface Invoice {
   customer_name?: string;
   issue_date: string | null;
   due_date: string | null;
+  tax_rate: number;
+  legacy_tax_rate?: number;
+  paid_amount?: number;
   total_net: number;
   total_tax: number;
   total_gross: number;
