@@ -8,6 +8,8 @@ const db = require('../db');
 const auth = require('../lib/auth');
 const utils = require('../lib/utils');
 const payments = require('../services/payments');
+const links = require('../services/payment-links');
+const mailer = require('../lib/mailer');
 
 const router = express.Router();
 
@@ -198,6 +200,33 @@ router.get('/:id/mail', function (req, res) {
     subject: 'Rechnung ' + inv.number + (account.name ? ' - ' + account.name : ''),
     body: body
   });
+});
+
+// send the invoice mail (outbox) with a payment link
+router.post('/:id/mail', function (req, res) {
+  if (!ownInvoice(req, res)) return;
+  var inv = invoices.getById(Number(req.params.id));
+  if (inv.status !== 'issued') return res.status(409).json({ error: 'nur offene Rechnungen' });
+  var c = inv.customer || {};
+  var to = (req.body && req.body.to) || c.email;
+  if (!to) return res.status(400).json({ error: 'Kunde hat keine E-Mail-Adresse' });
+  var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(inv.account_id) || {};
+  var link = links.create(inv);
+  var mail = mailer.queue({
+    account_id: inv.account_id,
+    invoice_id: inv.id,
+    template: 'invoice',
+    to: to,
+    vars: {
+      greeting: mailer.greeting(c),
+      number: inv.number,
+      amount: money.formatEuro(inv.total_gross),
+      due: inv.due_date ? inv.due_date.split('-').reverse().join('.') : '',
+      pay_line: '\nOder direkt mit Karte bezahlen: ' + link.url + '\n',
+      account: account.name
+    }
+  });
+  res.status(201).json(mail);
 });
 
 // single items. the admin page sends all items with PUT, these are for scripts

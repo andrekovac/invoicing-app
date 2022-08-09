@@ -31,6 +31,11 @@ router.put('/account', function (req, res) {
   res.json(db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(req.accountId));
 });
 
+// mails written by the api (invoice, reminder, ...)
+router.get('/outbox', function (req, res) {
+  res.json(require('../lib/mailer').list(req.accountId, Number(req.query.limit) || 100));
+});
+
 router.get('/users', function (req, res) {
   var rows = db.open().prepare('SELECT * FROM users WHERE account_id = ? ORDER BY name').all(req.accountId);
   res.json(rows.map(auth.publicUser));

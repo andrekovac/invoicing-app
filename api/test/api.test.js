@@ -258,3 +258,14 @@ test('tax rate in percent', async function () {
   var txt = await call('GET', '/api/v1/invoices/' + inv.body.id + '/pdf?format=txt');
   assert.match(txt.body, /USt\. 7 %/);
 });
+
+test('invoice mail goes to the outbox', async function () {
+  await call('POST', '/api/v1/auth/login', { email: 'jonas@agentur-brandt.example', password: 'rechnungen' });
+  var inv = (await call('GET', '/api/v1/invoices/by-number/RE-2021-0001')).body;
+  var res = await call('POST', '/api/v1/invoices/' + inv.id + '/mail');
+  assert.strictEqual(res.status, 201);
+  assert.strictEqual(res.body.to, 'mia.schulz@example.com');
+  assert.match(res.body.body, /\/pay\//);
+  var outbox = await call('GET', '/api/v1/admin/outbox');
+  assert.strictEqual(outbox.body[0].template, 'invoice');
+});

@@ -5,6 +5,7 @@ const utils = require('../lib/utils');
 const cardpay = require('../lib/cardpay');
 const invoices = require('./invoices');
 const customers = require('./customers');
+const mailer = require('../lib/mailer');
 
 function conn() {
   return db.open();
@@ -120,6 +121,16 @@ async function startCardPayment(invs, card) {
     reference: 'Karte **** ' + result.last4,
     provider_ref: result.id
   }));
+  if (customer.email) {
+    const account = conn().prepare('SELECT name FROM accounts WHERE id = ?').get(invs[0].account_id) || {};
+    mailer.queue({
+      account_id: invs[0].account_id,
+      invoice_id: invs.length === 1 ? invs[0].id : null,
+      template: 'payment_received',
+      to: customer.email,
+      vars: { greeting: mailer.greeting(customer), amount: money.formatEuro(total), number: numbers.replace(/,/g, ', '), account: account.name }
+    });
+  }
   return { charge_id: result.id, amount: total, payments: payments };
 }
 
