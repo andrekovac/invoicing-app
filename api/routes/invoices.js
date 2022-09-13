@@ -10,6 +10,7 @@ const utils = require('../lib/utils');
 const payments = require('../services/payments');
 const links = require('../services/payment-links');
 const mailer = require('../lib/mailer');
+const reminders = require('../services/reminders');
 
 const router = express.Router();
 
@@ -95,6 +96,23 @@ router.post('/preview', function (req, res) {
     total_tax: money.round2(gross - net),
     total_gross: gross
   });
+});
+
+// overdue invoices with the date of the last reminder
+router.get('/overdue', function (req, res) {
+  res.json(reminders.overdueInvoices(req.accountId).map(function (inv) {
+    var last = reminders.lastReminder(inv.id);
+    return {
+      id: inv.id,
+      number: inv.number,
+      customer_name: inv.customer_name,
+      customer_email: inv.customer_email,
+      due_date: inv.due_date,
+      total_gross: inv.total_gross,
+      open: payments.openAmount(inv),
+      reminded_at: last ? last.created_at : null
+    };
+  }));
 });
 
 // lookup by number, e.g. from the bank statement
@@ -200,6 +218,19 @@ router.get('/:id/mail', function (req, res) {
     subject: 'Rechnung ' + inv.number + (account.name ? ' - ' + account.name : ''),
     body: body
   });
+});
+
+// reminder by hand (the job sends only the first one)
+router.post('/:id/remind', function (req, res, next) {
+  var own = ownInvoice(req, res);
+  if (!own) return;
+  var inv = reminders.overdueInvoices(req.accountId).find(function (i) { return i.id === own.id; });
+  if (!inv) return res.status(409).json({ error: 'Rechnung ist nicht überfällig' });
+  try {
+    res.status(201).json(reminders.sendReminder(inv));
+  } catch (err) {
+    next(err);
+  }
 });
 
 // send the invoice mail (outbox) with a payment link

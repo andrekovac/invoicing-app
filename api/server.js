@@ -50,6 +50,7 @@ if (require.main === module) {
   db.open();
   // fresh checkout: no db file yet, fill it with demo data
   if (db.wasCreated()) require('./seed/seed').seed();
+  if (process.env.OVERDUE_JOB !== 'off') require('./jobs/overdue').start();
   app.listen(PORT, function () {
     console.log('api on http://localhost:' + PORT);
   });
