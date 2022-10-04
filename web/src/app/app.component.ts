@@ -10,6 +10,7 @@ import { post } from '../api/client.js';
       <strong>Rechnungen</strong>
       <a routerLink="/invoices" routerLinkActive="active">Rechnungen</a>
       <a routerLink="/customers" routerLinkActive="active">Kunden</a>
+      <a routerLink="/payments" routerLinkActive="active">Zahlungen</a>
       <span class="spacer"></span>
       <span class="muted">{{ user()?.account_name }}</span>
       <span>{{ user()?.name || user()?.email }}</span>

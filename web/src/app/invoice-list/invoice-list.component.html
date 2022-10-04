@@ -21,11 +21,12 @@
 </div>
 
 <p class="error" *ngIf="error">{{ error }}</p>
+<p class="ok" *ngIf="info">{{ info }}</p>
 
 <table>
   <thead>
     <tr>
-      <th>Nummer</th><th>Kunde</th><th>Datum</th><th>Fällig</th><th>Status</th><th class="num">Brutto</th><th></th>
+      <th>Nummer</th><th>Kunde</th><th>Datum</th><th>Fällig</th><th>Status</th><th class="num">Brutto</th><th class="num">Offen</th><th></th>
     </tr>
   </thead>
   <tbody>
@@ -36,8 +37,12 @@
       <td>{{ inv.due_date | dateDe }}</td>
       <td><span class="status status-{{ inv.status }}">{{ inv.status | status }}</span></td>
       <td class="num">{{ inv.total_gross | euro }}</td>
-      <td><a [href]="pdfUrl(inv)" target="_blank">PDF</a></td>
+      <td class="num" [class.overdue]="isOverdue(inv)">{{ inv.status === 'issued' ? (open(inv) | euro) : '' }}</td>
+      <td>
+        <a [href]="pdfUrl(inv)" target="_blank">PDF</a>
+        <a href="" *ngIf="inv.status === 'issued'" (click)="copyLink(inv, $event)"> Zahlungslink</a>
+      </td>
     </tr>
-    <tr *ngIf="!loading && !invoices.length"><td colspan="7" class="muted">Keine Rechnungen</td></tr>
+    <tr *ngIf="!loading && !invoices.length"><td colspan="8" class="muted">Keine Rechnungen</td></tr>
   </tbody>
 </table>

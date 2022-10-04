@@ -1,0 +1,51 @@
+<h1>Zahlungen</h1>
+
+<form class="card" (ngSubmit)="record()">
+  <h2>Überweisung erfassen</h2>
+  <div class="form-row">
+    <label>Rechnung
+      <select name="invoice" [(ngModel)]="invoiceId" (change)="pickInvoice()" required>
+        <option [ngValue]="null">bitte wählen</option>
+        <option *ngFor="let inv of openInvoices" [ngValue]="inv.id">
+          {{ inv.number }} - {{ inv.customer_name }} ({{ open(inv) | euro }} offen)
+        </option>
+      </select>
+    </label>
+    <label>Betrag <input name="amount" [(ngModel)]="amount" size="10" placeholder="0,00"></label>
+    <label>Datum <input name="paid_at" type="date" [(ngModel)]="paidAt"></label>
+    <label>Verwendungszweck <input name="reference" [(ngModel)]="reference" size="30"></label>
+  </div>
+  <p class="error" *ngIf="error">{{ error }}</p>
+  <p class="ok" *ngIf="info">{{ info }}</p>
+  <button type="submit" [disabled]="!invoiceId">Erfassen</button>
+</form>
+
+<div class="toolbar">
+  <select [(ngModel)]="method" (change)="load()">
+    <option value="">Alle Zahlungsarten</option>
+    <option value="transfer">Überweisung</option>
+    <option value="card">Karte</option>
+  </select>
+  <label>von <input type="date" [(ngModel)]="from" (change)="load()"></label>
+  <label>bis <input type="date" [(ngModel)]="to" (change)="load()"></label>
+  <span class="spacer"></span>
+  <span>Summe: <b>{{ sum() | euro }}</b></span>
+</div>
+
+<table>
+  <thead>
+    <tr><th>Datum</th><th>Rechnung</th><th>Kunde</th><th>Art</th><th>Referenz</th><th class="num">Betrag</th><th></th></tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of payments">
+      <td>{{ p.paid_at | dateDe }}</td>
+      <td>{{ p.number }}</td>
+      <td>{{ p.customer_name }}</td>
+      <td>{{ p.method === 'card' ? 'Karte' : 'Überweisung' }}</td>
+      <td class="muted">{{ p.reference }}</td>
+      <td class="num">{{ p.amount | euro }}</td>
+      <td><button class="secondary" *ngIf="p.method === 'transfer'" (click)="remove(p)">x</button></td>
+    </tr>
+    <tr *ngIf="!payments.length"><td colspan="7" class="muted">Keine Zahlungen</td></tr>
+  </tbody>
+</table>

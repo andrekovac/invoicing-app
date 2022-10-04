@@ -6,12 +6,19 @@ import { LoginComponent } from './login/login.component';
 import { InvoiceListComponent } from './invoice-list/invoice-list.component';
 import { CustomerListComponent } from './customers/customer-list.component';
 import { CustomerEditComponent } from './customers/customer-edit.component';
+import { PaymentListComponent } from './payments/payment-list.component';
+import { PortalComponent } from './portal/portal.component';
+import { PayLinkComponent } from './portal/pay-link.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'invoices', component: InvoiceListComponent, canActivate: [AuthGuard] },
   { path: 'customers', component: CustomerListComponent, canActivate: [AuthGuard] },
   { path: 'customers/:id', component: CustomerEditComponent, canActivate: [AuthGuard] },
+  { path: 'payments', component: PaymentListComponent, canActivate: [AuthGuard] },
+  // customers, no login
+  { path: 'portal/:token', component: PortalComponent },
+  { path: 'pay/:token', component: PayLinkComponent },
   { path: '', pathMatch: 'full', redirectTo: 'invoices' },
   { path: '**', redirectTo: 'invoices' }
 ];

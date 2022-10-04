@@ -1,0 +1,39 @@
+<div class="card" *ngIf="error && !data">
+  <h2>Link ungültig</h2>
+  <p>{{ error }}</p>
+</div>
+
+<div *ngIf="data">
+  <h1>Offene Rechnungen</h1>
+  <p class="muted">{{ data.customer.name }} bei {{ data.account.name }}</p>
+
+  <table>
+    <thead>
+      <tr><th></th><th>Rechnung</th><th>Datum</th><th>Fällig</th><th class="num">Offen</th><th></th></tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let inv of data.invoices">
+        <td><input type="checkbox" [checked]="inCart(inv)" (change)="toggle(inv)"></td>
+        <td>{{ inv.number }}</td>
+        <td>{{ inv.issue_date | dateDe }}</td>
+        <td [class.overdue]="inv.overdue">{{ inv.due_date | dateDe }}</td>
+        <td class="num">{{ inv.open | euro }}</td>
+        <td><a [href]="pdfUrl(inv)" target="_blank">PDF</a></td>
+      </tr>
+      <tr *ngIf="!data.invoices.length"><td colspan="6" class="ok">Alles bezahlt, vielen Dank!</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card" *ngIf="data.invoices.length" style="margin-top: 16px;">
+    <div class="toolbar">
+      <button class="secondary" (click)="all()">Alle auswählen</button>
+      <span class="spacer"></span>
+      <span>Ausgewählt: {{ cartIds.length }} Rechnung(en), <b>{{ total() | euro }}</b></span>
+    </div>
+    <app-card-form [amount]="total()" [busy]="busy" (pay)="pay($event)"></app-card-form>
+    <p class="error" *ngIf="payError">{{ payError }}</p>
+    <p class="muted" *ngIf="data.account.iban">Oder per Überweisung an {{ data.account.name }}, IBAN {{ data.account.iban }}</p>
+  </div>
+
+  <p class="ok" *ngIf="done">{{ done }}</p>
+</div>

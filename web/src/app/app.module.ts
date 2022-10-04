@@ -9,6 +9,10 @@ import { LoginComponent } from './login/login.component';
 import { InvoiceListComponent } from './invoice-list/invoice-list.component';
 import { CustomerListComponent } from './customers/customer-list.component';
 import { CustomerEditComponent } from './customers/customer-edit.component';
+import { PaymentListComponent } from './payments/payment-list.component';
+import { PortalComponent } from './portal/portal.component';
+import { PayLinkComponent } from './portal/pay-link.component';
+import { CardFormComponent } from './portal/card-form.component';
 import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
 
 @NgModule({
@@ -18,6 +22,10 @@ import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
     InvoiceListComponent,
     CustomerListComponent,
     CustomerEditComponent,
+    PaymentListComponent,
+    PortalComponent,
+    PayLinkComponent,
+    CardFormComponent,
     EuroPipe,
     DateDePipe,
     StatusPipe
