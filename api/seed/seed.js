@@ -6,6 +6,9 @@ const auth = require('../lib/auth');
 const addDays = require('../lib/utils').addDays;
 const path = require('path');
 const importer = require('../scripts/import-legacy');
+const payments = require('../services/payments');
+const pricing = require('../lib/pricing');
+const money = require('../lib/money');
 
 var CUSTOMERS = [
   { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
@@ -83,6 +86,59 @@ function seedAlbers(conn) {
   addUser.run('buchhaltung@druckerei-albers.example', 'Buchhaltung', auth.hashPasswordSync('rechnungen'), 'user');
   var stats = importer.importDir(path.join(__dirname, 'legacy'), 2);
   console.log('[seed] Druckerei Albers: ' + stats.customers + ' customers, ' + stats.invoices + ' invoices imported');
+  seedAlbers2022();
+}
+
+// typed in by the Albers staff in 2022, with the new form (country is free text there)
+var ALBERS_2022_CUSTOMERS = [
+  { name: 'Buchbinderei Gruber', contact_name: 'Martin Gruber', street: 'Linzer Gasse 17', zip: '5020', city: 'Salzburg', country: 'Österreich', email: 'office@buchbinderei-gruber.example', vat_id: 'ATU63829417' },
+  { name: 'Atelier Brunner', contact_name: 'Lena Brunner', street: 'Spalenberg 30', zip: '4051', city: 'Basel', country: 'Schweiz', email: 'lena@atelier-brunner.example' },
+  { name: '=Huber & Co', contact_name: 'Herr Huber', street: 'Sanderstr. 4', zip: '97070', city: 'Würzburg', country: 'Deutschland', email: 'huber@huber-co.example', default_tax_rate: 19 },
+  { name: 'Kanzlei Seidel', contact_name: 'Dr. Paul Seidel', street: 'Hofstr. 11', zip: '97070', city: 'Würzburg', country: 'Deutschland', email: 'post@kanzlei-seidel.example', default_tax_rate: 19 },
+  { name: 'Fotostudio Licht', street: 'Eichhornstr. 2', zip: '97070', city: 'Würzburg', country: 'DE', email: 'studio@foto-licht.example' }
+];
+
+// [customer name, issue date, status, tax rate, items, extra]
+var ALBERS_2022_INVOICES = [
+  ['Buchbinderei Gruber', '2022-03-14', 'paid', 19, [['Umschläge Sonderformat 4/0', 400, 0.85], ['Prägefolie Gold', 1, 120]]],
+  ['Atelier Brunner', '2022-04-04', 'issued', 19, [['Ausstellungskatalog 32 S., 4/4', 300, 4.2], ['Einladungskarten A6', 500, 0.32]]],
+  ['=Huber & Co', '2022-05-09', 'paid', 19, [['Briefbogen 1/0', 2000, 0.06], ['Visitenkarten 4/4', 500, 0.09]]],
+  ['Kanzlei Seidel', '2022-06-20', 'issued', 19, [['Mandantenbroschüre A5, 16 S.', 1200, 1], ['Satz und Layout (Std.)', 4, 55]], { partial: true }],
+  ['Verlag Sonnenblick', '2022-07-11', 'issued', 7, [['Buch "Fränkische Küche", 2. Auflage', 800, 8.95], ['Lesebändchen', 800, 0.12]], { note: 'Bücher 7 %, Lieferung in zwei Teilen' }],
+  ['Buchbinderei Gruber', '2022-09-05', 'issued', 19, [['Vorsatzpapier bedruckt', 600, 0.55], ['Andruck', 1, 85]], { note: 'Zahlt immer spät, Mahnung sofort raus' }],
+  ['Fotostudio Licht', '2022-09-26', 'paid', 19, [['Fotobuch Hardcover 30x30', 12, 48.5]]],
+  ['Krause GmbH', '2022-10-10', 'issued', 19, [['Messeflyer A5 4/4 (je 1000 St.)', 4, 69.9], ['Rollup 85x200 inkl. Kassette', 1, 92]]],
+  ['=Huber & Co', '2022-10-17', 'draft', 19, [['Kalender 2023 A3', 100, 7.2]]]
+];
+
+function seedAlbers2022() {
+  var ids = {};
+  customers.list(2).forEach(function (c) { ids[c.name] = c.id; });
+  ALBERS_2022_CUSTOMERS.forEach(function (c) {
+    ids[c.name] = customers.create(2, c).id;
+  });
+  ALBERS_2022_INVOICES.forEach(function (row) {
+    var extra = row[5] || {};
+    var inv = invoices.create(2, {
+      customer_id: ids[row[0]],
+      issue_date: row[1],
+      tax_rate: row[3],
+      note: extra.note,
+      items: row[4].map(function (it) {
+        return { description: it[0], quantity: it[1], unit_price: it[2] };
+      })
+    });
+    if (row[2] === 'draft') return;
+    invoices.update(inv.id, { due_date: addDays(row[1], 14) });
+    inv = invoices.issue(inv.id);
+    if (row[2] === 'paid') {
+      payments.recordPayment(inv, { amount: inv.total_gross, paid_at: addDays(row[1], 12), reference: inv.number });
+    } else if (extra.partial) {
+      // Anzahlung 50 % vom Nettobetrag der Broschüren, Rest offen
+      payments.recordPayment(inv, { amount: money.round2(pricing.gross(1200, row[3]) / 2), paid_at: addDays(row[1], 7), reference: 'Anzahlung ' + inv.number });
+    }
+  });
+  console.log('[seed] Druckerei Albers 2022: ' + ALBERS_2022_CUSTOMERS.length + ' customers, ' + ALBERS_2022_INVOICES.length + ' invoices');
 }
 
 if (require.main === module) {
