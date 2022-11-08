@@ -11,6 +11,7 @@ export interface Invoice {
   issue_date: string | null;
   due_date: string | null;
   tax_rate: number;
+  discount_percent?: number;
   legacy_tax_rate?: number;
   paid_amount?: number;
   total_net: number;
@@ -60,6 +61,30 @@ export class InvoiceService {
 
   markPaid(id: number, paidAt?: string): Observable<Invoice> {
     return this.http.post<Invoice>(this.base + '/' + id + '/paid', { paid_at: paidAt });
+  }
+
+  create(data: any): Observable<Invoice> {
+    return this.http.post<Invoice>(this.base, data);
+  }
+
+  update(id: number, data: any): Observable<Invoice> {
+    return this.http.put<Invoice>(this.base + '/' + id, data);
+  }
+
+  remove(id: number): Observable<void> {
+    return this.http.delete<void>(this.base + '/' + id);
+  }
+
+  cancel(id: number): Observable<Invoice> {
+    return this.http.post<Invoice>(this.base + '/' + id + '/cancel', {});
+  }
+
+  copy(id: number): Observable<Invoice> {
+    return this.http.post<Invoice>(this.base + '/' + id + '/copy', {});
+  }
+
+  sendMail(id: number): Observable<any> {
+    return this.http.post<any>(this.base + '/' + id + '/mail', {});
   }
 
   pdfUrl(id: number): string {

@@ -1,0 +1,62 @@
+<h1>{{ title() }}</h1>
+
+<form class="card" (ngSubmit)="save()">
+  <div class="form-row">
+    <label>Kunde
+      <select name="customer_id" [(ngModel)]="form.customer_id" (change)="customerChanged()" [disabled]="!isDraft()">
+        <option *ngFor="let c of customers" [ngValue]="c.id">{{ c.name }}</option>
+      </select>
+    </label>
+    <label>Steuersatz
+      <select name="tax_rate" [(ngModel)]="form.tax_rate" [disabled]="!isDraft()">
+        <option *ngFor="let r of rates" [ngValue]="r">{{ r }} %</option>
+      </select>
+    </label>
+    <label>Rabatt % <input name="discount" [(ngModel)]="form.discount_percent" size="4" [disabled]="!isDraft()"></label>
+    <label>Datum <input name="issue_date" type="date" [(ngModel)]="form.issue_date"></label>
+    <label>Fällig <input name="due_date" type="date" [(ngModel)]="form.due_date"></label>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Beschreibung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Summe</th><th></th></tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let it of form.items; let i = index">
+        <td><input [name]="'desc' + i" [(ngModel)]="it.description" size="46"></td>
+        <td class="num"><input [name]="'qty' + i" [(ngModel)]="it.quantity" size="6" [disabled]="!isDraft()"></td>
+        <td class="num"><input [name]="'price' + i" [(ngModel)]="it.unit_price" size="10" [disabled]="!isDraft()"></td>
+        <td class="num">{{ line(it) | euro }}</td>
+        <td><button type="button" class="secondary" *ngIf="isDraft()" (click)="removeItem(i)">x</button></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="toolbar" style="margin-top: 8px;">
+    <button type="button" class="secondary" *ngIf="isDraft()" (click)="addItem()">+ Position</button>
+    <span class="spacer"></span>
+    <span>Netto {{ totals().total_net | euro }}</span>
+    <span>USt. {{ totals().total_tax | euro }}</span>
+    <b>Gesamt {{ totals().total_gross | euro }}</b>
+  </div>
+  <p class="muted" *ngIf="!isDraft() && invoice">Gestellte Rechnung: nur Texte und Daten ändern, die Beträge bleiben ({{ invoice.total_gross | euro }}).</p>
+
+  <div class="form-row">
+    <label style="flex: 1;">Interne Notiz (nicht auf der Rechnung)
+      <textarea name="note" rows="2" [(ngModel)]="form.note"></textarea>
+    </label>
+  </div>
+
+  <p class="error" *ngIf="error">{{ error }}</p>
+  <p class="ok" *ngIf="info">{{ info }}</p>
+
+  <div class="toolbar">
+    <button type="submit" [disabled]="busy">Speichern</button>
+    <button type="button" *ngIf="invoice?.status === 'draft'" (click)="issue()">Rechnung stellen</button>
+    <button type="button" class="secondary" *ngIf="invoice?.status === 'issued'" (click)="sendMail()">Per Mail senden</button>
+    <a *ngIf="invoice" [href]="pdfUrl()" target="_blank">PDF</a>
+    <button type="button" class="secondary" *ngIf="invoice" (click)="copy()">Kopieren</button>
+    <span class="spacer"></span>
+    <button type="button" class="danger" *ngIf="invoice?.status === 'draft'" (click)="remove()">Löschen</button>
+    <button type="button" class="danger" *ngIf="invoice?.status === 'issued'" (click)="cancel()">Stornieren</button>
+  </div>
+</form>

@@ -7,6 +7,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { LoginComponent } from './login/login.component';
 import { InvoiceListComponent } from './invoice-list/invoice-list.component';
+import { InvoiceEditComponent } from './invoice-edit/invoice-edit.component';
 import { CustomerListComponent } from './customers/customer-list.component';
 import { CustomerEditComponent } from './customers/customer-edit.component';
 import { PaymentListComponent } from './payments/payment-list.component';
@@ -20,6 +21,7 @@ import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
     AppComponent,
     LoginComponent,
     InvoiceListComponent,
+    InvoiceEditComponent,
     CustomerListComponent,
     CustomerEditComponent,
     PaymentListComponent,
