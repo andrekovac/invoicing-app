@@ -26,9 +26,11 @@
   </div>
   <p class="error" *ngIf="error">{{ error }}</p>
   <p class="ok" *ngIf="saved">Gespeichert</p>
+  <p class="ok" *ngIf="info">{{ info }}</p>
   <div class="toolbar">
     <button type="submit">Speichern</button>
     <button type="button" class="secondary" (click)="back()">Zurück</button>
+    <button type="button" class="secondary" *ngIf="customer.id && customer.email" (click)="portalMail()">Portal-Link senden</button>
     <button type="button" class="danger" *ngIf="customer.id" (click)="remove()">Löschen</button>
   </div>
 </form>

@@ -11,6 +11,7 @@ import { post } from '../api/client.js';
       <a routerLink="/invoices" routerLinkActive="active">Rechnungen</a>
       <a routerLink="/customers" routerLinkActive="active">Kunden</a>
       <a routerLink="/payments" routerLinkActive="active">Zahlungen</a>
+      <a routerLink="/overdue" routerLinkActive="active">Überfällig</a>
       <span class="spacer"></span>
       <span class="muted">{{ user()?.account_name }}</span>
       <span>{{ user()?.name || user()?.email }}</span>

@@ -3,7 +3,11 @@ const db = require('../db');
 const FIELDS = ['name', 'contact_name', 'street', 'zip', 'city', 'country', 'email', 'phone', 'vat_id', 'default_tax_rate'];
 
 function list(accountId, q) {
-  var sql = 'SELECT * FROM customers WHERE account_id = ?';
+  // open_amount: issued invoices minus partial payments
+  var sql = 'SELECT customers.*, ' +
+    "(SELECT coalesce(sum(i.total_gross), 0) FROM invoices i WHERE i.customer_id = customers.id AND i.status = 'issued') - " +
+    "(SELECT coalesce(sum(p.amount), 0) FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.customer_id = customers.id AND i.status = 'issued') AS open_amount " +
+    'FROM customers WHERE account_id = ?';
   var args = [accountId];
   if (q) {
     sql += ' AND (name LIKE ? OR city LIKE ? OR contact_name LIKE ?)';

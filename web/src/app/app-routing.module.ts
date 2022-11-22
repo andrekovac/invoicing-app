@@ -8,6 +8,7 @@ import { InvoiceEditComponent } from './invoice-edit/invoice-edit.component';
 import { CustomerListComponent } from './customers/customer-list.component';
 import { CustomerEditComponent } from './customers/customer-edit.component';
 import { PaymentListComponent } from './payments/payment-list.component';
+import { OverdueComponent } from './overdue/overdue.component';
 import { PortalComponent } from './portal/portal.component';
 import { PayLinkComponent } from './portal/pay-link.component';
 
@@ -19,6 +20,7 @@ const routes: Routes = [
   { path: 'customers', component: CustomerListComponent, canActivate: [AuthGuard] },
   { path: 'customers/:id', component: CustomerEditComponent, canActivate: [AuthGuard] },
   { path: 'payments', component: PaymentListComponent, canActivate: [AuthGuard] },
+  { path: 'overdue', component: OverdueComponent, canActivate: [AuthGuard] },
   // customers, no login
   { path: 'portal/:token', component: PortalComponent },
   { path: 'pay/:token', component: PayLinkComponent },

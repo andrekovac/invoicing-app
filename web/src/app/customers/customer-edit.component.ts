@@ -10,6 +10,7 @@ export class CustomerEditComponent implements OnInit {
   customer: Customer = { name: '' };
   invoices: any[] = [];
   error = '';
+  info = '';
   saved = false;
 
   constructor(private route: ActivatedRoute, private router: Router, private customerService: CustomerService) { }
@@ -33,6 +34,16 @@ export class CustomerEditComponent implements OnInit {
         if (isNew) this.router.navigate(['/customers', c.id]);
       },
       err => this.error = (err.error && err.error.error) || 'Fehler beim Speichern'
+    );
+  }
+
+  portalMail(): void {
+    if (!this.customer.id) return;
+    this.error = '';
+    this.info = '';
+    this.customerService.sendPortalMail(this.customer.id).subscribe(
+      mail => this.info = 'Portal-Link an ' + mail.to + ' liegt im Postausgang',
+      err => this.error = (err.error && err.error.error) || 'Fehler beim Senden'
     );
   }
 

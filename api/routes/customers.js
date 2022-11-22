@@ -3,6 +3,9 @@ const customers = require('../services/customers');
 const invoices = require('../services/invoices');
 const auth = require('../lib/auth');
 const pricing = require('../lib/pricing');
+const mailer = require('../lib/mailer');
+const links = require('../services/payment-links');
+const db = require('../db');
 
 const router = express.Router();
 router.use(auth.requireLogin);
@@ -42,6 +45,21 @@ router.get('/:id/invoices', function (req, res) {
   var c = own(req, res);
   if (!c) return;
   res.json(invoices.list(req.accountId, { customer_id: c.id }));
+});
+
+// mail with the portal link: the customer sees and pays all open invoices
+router.post('/:id/portal-mail', function (req, res) {
+  var c = own(req, res);
+  if (!c) return;
+  if (!c.email) return res.status(400).json({ error: 'Kunde hat keine E-Mail-Adresse' });
+  var account = db.open().prepare('SELECT name FROM accounts WHERE id = ?').get(req.accountId) || {};
+  var link = links.createPortal(c);
+  res.status(201).json(mailer.queue({
+    account_id: req.accountId,
+    template: 'portal_link',
+    to: c.email,
+    vars: { greeting: mailer.greeting(c), url: link.url, account: account.name }
+  }));
 });
 
 router.post('/', function (req, res) {

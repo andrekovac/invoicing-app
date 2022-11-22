@@ -269,3 +269,12 @@ test('invoice mail goes to the outbox', async function () {
   var outbox = await call('GET', '/api/v1/admin/outbox');
   assert.strictEqual(outbox.body[0].template, 'invoice');
 });
+
+test('portal mail and open amount per customer', async function () {
+  var list = await call('GET', '/api/v1/customers');
+  var schulz = list.body.find(function (c) { return c.email === 'mia.schulz@example.com'; });
+  assert.ok(schulz.open_amount >= 0);
+  var res = await call('POST', '/api/v1/customers/' + schulz.id + '/portal-mail');
+  assert.strictEqual(res.status, 201);
+  assert.match(res.body.body, /\/portal\//);
+});

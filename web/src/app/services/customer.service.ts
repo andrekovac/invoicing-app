@@ -15,6 +15,7 @@ export interface Customer {
   phone?: string | null;
   vat_id?: string | null;
   legacy_no?: string | null;
+  open_amount?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +40,10 @@ export class CustomerService {
   save(c: Customer): Observable<Customer> {
     if (c.id) return this.http.put<Customer>(this.base + '/' + c.id, c);
     return this.http.post<Customer>(this.base, c);
+  }
+
+  sendPortalMail(id: number): Observable<any> {
+    return this.http.post<any>(this.base + '/' + id + '/portal-mail', {});
   }
 
   remove(id: number): Observable<void> {
