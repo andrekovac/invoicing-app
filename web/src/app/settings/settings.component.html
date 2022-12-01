@@ -1,0 +1,67 @@
+<h1>Einstellungen</h1>
+
+<form class="card" *ngIf="account" (ngSubmit)="saveAccount()">
+  <h2>Firma</h2>
+  <div class="form-row">
+    <label>Name <input name="name" [(ngModel)]="account.name" size="34"></label>
+    <label>E-Mail <input name="email" [(ngModel)]="account.email" size="30"></label>
+  </div>
+  <div class="form-row">
+    <label>Straße <input name="street" [(ngModel)]="account.street" size="30"></label>
+    <label>PLZ <input name="zip" [(ngModel)]="account.zip" size="6"></label>
+    <label>Ort <input name="city" [(ngModel)]="account.city"></label>
+  </div>
+  <div class="form-row">
+    <label>IBAN <input name="iban" [(ngModel)]="account.iban" size="30"></label>
+    <label>Steuernummer <input name="tax_number" [(ngModel)]="account.tax_number"></label>
+  </div>
+  <p class="muted">Tarif: {{ account.plan }}</p>
+  <p class="ok" *ngIf="accountSaved">Gespeichert</p>
+  <button type="submit">Speichern</button>
+</form>
+
+<div class="card">
+  <h2>Benutzer</h2>
+  <table>
+    <thead><tr><th>Name</th><th>E-Mail</th><th>Rolle</th><th></th></tr></thead>
+    <tbody>
+      <tr *ngFor="let u of users">
+        <td>{{ u.name }}</td>
+        <td>{{ u.email }}</td>
+        <td>
+          <select [ngModel]="u.role" (ngModelChange)="setRole(u, $event)" [disabled]="u.id === me?.id">
+            <option value="user">Benutzer</option>
+            <option value="admin">Admin</option>
+          </select>
+        </td>
+        <td><button class="danger" *ngIf="u.id !== me?.id" (click)="removeUser(u)">Löschen</button></td>
+      </tr>
+    </tbody>
+  </table>
+  <form class="form-row" style="margin-top: 12px;" (ngSubmit)="addUser()">
+    <label>Name <input name="nu_name" [(ngModel)]="newUser.name"></label>
+    <label>E-Mail <input name="nu_email" type="email" [(ngModel)]="newUser.email"></label>
+    <label>Passwort <input name="nu_password" type="password" [(ngModel)]="newUser.password"></label>
+    <label>&nbsp;<button type="submit">Benutzer anlegen</button></label>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Postausgang</h2>
+  <table>
+    <thead><tr><th>Datum</th><th>An</th><th>Betreff</th><th>Art</th><th>Gesendet</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let m of outbox" class="click" (click)="openMail = openMail === m ? null : m">
+        <td>{{ m.created_at | dateDe }}</td>
+        <td>{{ m.to_email }}</td>
+        <td>{{ m.subject }}</td>
+        <td class="muted">{{ m.template }}</td>
+        <td>{{ m.sent_at ? (m.sent_at | dateDe) : 'wartet' }}</td>
+      </tr>
+      <tr *ngIf="!outbox.length"><td colspan="5" class="muted">Noch keine Mails</td></tr>
+    </tbody>
+  </table>
+  <pre *ngIf="openMail" class="card">{{ openMail.body }}</pre>
+</div>
+
+<p class="error" *ngIf="error">{{ error }}</p>

@@ -12,6 +12,7 @@ import { CustomerListComponent } from './customers/customer-list.component';
 import { CustomerEditComponent } from './customers/customer-edit.component';
 import { PaymentListComponent } from './payments/payment-list.component';
 import { OverdueComponent } from './overdue/overdue.component';
+import { SettingsComponent } from './settings/settings.component';
 import { PortalComponent } from './portal/portal.component';
 import { PayLinkComponent } from './portal/pay-link.component';
 import { CardFormComponent } from './portal/card-form.component';
@@ -27,6 +28,7 @@ import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
     CustomerEditComponent,
     PaymentListComponent,
     OverdueComponent,
+    SettingsComponent,
     PortalComponent,
     PayLinkComponent,
     CardFormComponent,
