@@ -8,6 +8,8 @@
     "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
     "db:reset": "node --disable-warning=ExperimentalWarning scripts/reset-db.js",
     "seed": "node --disable-warning=ExperimentalWarning seed/seed.js",
+    "import": "node --disable-warning=ExperimentalWarning scripts/import-legacy.js",
+    "outbox": "node --disable-warning=ExperimentalWarning scripts/send-outbox.js",
     "test": "node --disable-warning=ExperimentalWarning --test"
   },
   "dependencies": {

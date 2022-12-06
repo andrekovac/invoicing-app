@@ -64,4 +64,21 @@
   <pre *ngIf="openMail" class="card">{{ openMail.body }}</pre>
 </div>
 
+<div class="card" *ngIf="imports.length">
+  <h2>Importe (altes Programm)</h2>
+  <table>
+    <thead><tr><th>Datum</th><th>Quelle</th><th class="num">Kunden</th><th class="num">Rechnungen</th><th class="num">Positionen</th><th>Hinweise</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let imp of imports">
+        <td>{{ imp.created_at | dateDe }}</td>
+        <td>{{ imp.source }}</td>
+        <td class="num">{{ imp.customers }}</td>
+        <td class="num">{{ imp.invoices }}</td>
+        <td class="num">{{ imp.items }}</td>
+        <td class="muted">{{ imp.warnings || '-' }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <p class="error" *ngIf="error">{{ error }}</p>

@@ -213,6 +213,24 @@
       $('inv-txt').href = API + '/invoices/' + inv.id + '/pdf?format=txt';
     }
     updateTotals();
+    loadPayments(inv);
+  }
+
+  function loadPayments(inv) {
+    if (!inv.id || (inv.status !== 'issued' && inv.status !== 'paid')) {
+      $('pay-box').classList.add('hidden');
+      return;
+    }
+    api('GET', '/payments?invoice_id=' + inv.id).then(function (p) {
+      $('pay-rows').innerHTML = p.payments.map(function (row) {
+        return '<tr><td>' + dateDe(row.paid_at) + '</td>' +
+          '<td>' + (row.method === 'card' ? 'Karte' : 'Überweisung') + '</td>' +
+          '<td>' + esc(row.reference) + '</td>' +
+          '<td class="num">' + euro(row.amount) + '</td></tr>';
+      }).join('') || '<tr><td colspan="4">Noch keine Zahlung</td></tr>';
+      $('pay-open').textContent = p.open > 0 ? 'Offen: ' + euro(p.open) : '';
+      $('pay-box').classList.remove('hidden');
+    }).catch(fail);
   }
 
   function openInvoice(id) {

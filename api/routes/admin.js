@@ -36,6 +36,11 @@ router.get('/outbox', function (req, res) {
   res.json(require('../lib/mailer').list(req.accountId, Number(req.query.limit) || 100));
 });
 
+// imports from the old desktop program
+router.get('/imports', function (req, res) {
+  res.json(db.open().prepare('SELECT * FROM imports WHERE account_id = ? ORDER BY id DESC').all(req.accountId));
+});
+
 router.get('/users', function (req, res) {
   var rows = db.open().prepare('SELECT * FROM users WHERE account_id = ? ORDER BY name').all(req.accountId);
   res.json(rows.map(auth.publicUser));

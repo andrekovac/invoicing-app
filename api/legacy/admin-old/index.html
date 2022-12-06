@@ -111,6 +111,15 @@
           <a href="#/invoices">Zurück</a>
         </div>
       </form>
+      <!-- payments (read only here, entering them is in the new web app) -->
+      <div id="pay-box" class="hidden">
+        <h3>Zahlungen</h3>
+        <table>
+          <thead><tr><th>Datum</th><th>Art</th><th>Referenz</th><th class="num">Betrag</th></tr></thead>
+          <tbody id="pay-rows"></tbody>
+        </table>
+        <p id="pay-open"></p>
+      </div>
     </section>
 
     <!-- customers -->

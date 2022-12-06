@@ -11,6 +11,7 @@ export class SettingsComponent implements OnInit {
   account: any = null;
   users: any[] = [];
   outbox: any[] = [];
+  imports: any[] = [];
   openMail: any = null;
   me: any = getUser();
   newUser = { name: '', email: '', password: '' };
@@ -20,6 +21,7 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     get('/admin/account').then((a: any) => this.account = a).catch((err: any) => this.error = err.message);
     this.loadUsers();
+    get('/admin/imports').then((rows: any) => this.imports = rows).catch(() => { /* not admin */ });
     get('/admin/outbox?limit=50').then((rows: any) => this.outbox = rows).catch(() => { /* not admin */ });
   }
 
