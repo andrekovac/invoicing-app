@@ -6,3 +6,6 @@ api/data/
 .DS_Store
 *.log
 web/dist/
+coverage/
+.idea/
+.vscode/
