@@ -11,3 +11,4 @@ written by hand from them once in a while.
 - `.editorconfig` (2 spaces, LF, the legacy CSV exports keep CRLF)
 - CI on GitHub Actions: tests on Linux, macOS and Windows
 - test helpers (`api/test/helpers.js`) for http tests with their own cookie per client
+- `lib/logger.js`: `[scope] text key=value` lines, `LOG_LEVEL`, `LOG_FORMAT=json`

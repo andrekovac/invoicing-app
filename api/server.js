@@ -2,6 +2,8 @@ const path = require('path');
 const express = require('express');
 const db = require('./db');
 const session = require('./lib/session');
+const log = require('./lib/logger')('http');
+const errorLog = require('./lib/logger')('error');
 
 const PORT = process.env.PORT || 4730;
 
@@ -13,7 +15,7 @@ app.use(function (req, res, next) {
   if (process.env.APP_DB_FILE === ':memory:') return next();
   var start = Date.now();
   res.on('finish', function () {
-    console.log(req.method + ' ' + req.originalUrl + ' ' + res.statusCode + ' ' + (Date.now() - start) + 'ms');
+    log.info(req.method + ' ' + req.originalUrl + ' ' + res.statusCode + ' ' + (Date.now() - start) + 'ms');
   });
   next();
 });
@@ -42,7 +44,7 @@ app.use('/api', function (req, res) {
 });
 
 app.use(function (err, req, res, next) {
-  if (!err.status || err.status >= 500) console.error(err);
+  if (!err.status || err.status >= 500) errorLog.error(req.method + ' ' + req.originalUrl, err);
   res.status(err.status || 500).json({ error: err.message || 'server error' });
 });
 
@@ -52,7 +54,7 @@ if (require.main === module) {
   if (db.wasCreated()) require('./seed/seed').seed();
   if (process.env.OVERDUE_JOB !== 'off') require('./jobs/overdue').start();
   app.listen(PORT, function () {
-    console.log('api on http://localhost:' + PORT);
+    require('./lib/logger')('api').info('listening on http://localhost:' + PORT);
   });
 }
 

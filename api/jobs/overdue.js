@@ -1,5 +1,6 @@
 // checks for overdue invoices and writes reminder mails (outbox). started in server.js
 const reminders = require('../services/reminders');
+const log = require('../lib/logger')('overdue');
 
 const INTERVAL = Number(process.env.OVERDUE_INTERVAL_MIN || 60) * 60 * 1000;
 let timer = null;
@@ -9,10 +10,10 @@ function tick() {
   try {
     sent = reminders.run();
   } catch (err) {
-    console.error('[overdue] failed', err);
+    log.error('failed', err);
     return [];
   }
-  sent.forEach(s => console.log(`[overdue] reminder to ${s.email} invoice=${s.number}`));
+  sent.forEach(s => log.info('reminder to ' + s.email, { invoice: s.number }));
   return sent;
 }
 
@@ -22,7 +23,7 @@ function start() {
   timer.unref();
   // first run shortly after start, not during the start itself
   setTimeout(tick, 5000).unref();
-  console.log('[overdue] job every ' + INTERVAL / 60000 + ' min');
+  log.info('job every ' + INTERVAL / 60000 + ' min');
 }
 
 function stop() {
