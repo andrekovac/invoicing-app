@@ -80,3 +80,16 @@ test('paid invoices cannot be deleted', async function () {
   const res = await api.del('/api/v1/invoices/' + id);
   assert.strictEqual(res.status, 409);
 });
+
+test('lookup by number, also typed loosely', async function () {
+  const inv = await api.get('/api/v1/invoices/' + id);
+  const loose = inv.body.number.toLowerCase().replace(/-0+/, '-');
+  const res = await api.get('/api/v1/invoices/by-number/' + encodeURIComponent(loose));
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.id, id);
+});
+
+test('lookup with a wrong number format', async function () {
+  const res = await api.get('/api/v1/invoices/by-number/12345');
+  assert.strictEqual(res.status, 400);
+});

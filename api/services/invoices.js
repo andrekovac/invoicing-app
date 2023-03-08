@@ -2,6 +2,7 @@ const db = require('../db');
 const pricing = require('../lib/pricing');
 const money = require('../lib/money');
 const utils = require('../lib/utils');
+const invoiceNumber = require('../lib/invoice-number');
 
 function conn() {
   return db.open();
@@ -161,11 +162,10 @@ function update(id, data) {
 
 // RE-2020-0001, counts per account and year
 function nextNumber(accountId, year) {
-  var prefix = 'RE-' + year + '-';
-  var last = conn().prepare('SELECT number FROM invoices WHERE account_id = ? AND number LIKE ? ORDER BY number DESC LIMIT 1')
+  var prefix = invoiceNumber.PREFIX + '-' + year + '-';
+  var last = conn().prepare('SELECT number FROM invoices WHERE account_id = ? AND number LIKE ? ORDER BY length(number) DESC, number DESC LIMIT 1')
     .get(accountId, prefix + '%');
-  var n = last ? parseInt(last.number.slice(prefix.length), 10) + 1 : 1;
-  return prefix + utils.pad(n, 4);
+  return invoiceNumber.next(last && last.number, year);
 }
 
 function findByNumber(accountId, number) {

@@ -11,6 +11,7 @@ const payments = require('../services/payments');
 const links = require('../services/payment-links');
 const mailer = require('../lib/mailer');
 const reminders = require('../services/reminders');
+const invoiceNumber = require('../lib/invoice-number');
 
 const router = express.Router();
 
@@ -117,7 +118,11 @@ router.get('/overdue', function (req, res) {
 
 // lookup by number, e.g. from the bank statement
 router.get('/by-number/:number', function (req, res) {
-  var inv = invoices.findByNumber(req.accountId, req.params.number);
+  var number = invoiceNumber.normalize(req.params.number);
+  if (!invoiceNumber.isValid(number)) {
+    return res.status(400).json({ error: 'Ungültige Rechnungsnumer (erwartet RE-JJJJ-NNNN)' });
+  }
+  var inv = invoices.findByNumber(req.accountId, number);
   if (!inv) return res.status(404).json({ error: 'not found' });
   res.json(invoices.getById(inv.id));
 });
