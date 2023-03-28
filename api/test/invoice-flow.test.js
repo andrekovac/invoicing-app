@@ -93,3 +93,19 @@ test('lookup with a wrong number format', async function () {
   const res = await api.get('/api/v1/invoices/by-number/12345');
   assert.strictEqual(res.status, 400);
 });
+
+test('history of the invoice', async function () {
+  const res = await api.get('/api/v1/invoices/' + id + '/events');
+  assert.strictEqual(res.status, 200);
+  const types = res.body.map(function (e) { return e.type; });
+  assert.deepStrictEqual(types, ['created', 'updated', 'issued', 'paid']);
+  assert.deepStrictEqual(res.body[1].data, { fields: ['items'] });
+  assert.strictEqual(res.body[2].user_name, 'Jonas Brandt');
+});
+
+test('copy remembers where it came from', async function () {
+  const copy = await api.post('/api/v1/invoices/' + id + '/copy');
+  const res = await api.get('/api/v1/invoices/' + copy.body.id + '/events');
+  assert.strictEqual(res.body[0].type, 'created');
+  assert.match(res.body[0].data.copied_from, /^RE-/);
+});

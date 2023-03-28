@@ -57,6 +57,13 @@ router.get('/:id/pdf', function (req, res) {
 
 router.use(auth.requireLogin);
 
+// who did it, for the invoice history
+router.use(function (req, res, next) {
+  invoices.setActor(req.user.id);
+  res.on('finish', function () { invoices.setActor(null); });
+  next();
+});
+
 // invoice of the logged in account, else 404
 function ownInvoice(req, res) {
   var inv = invoices.findById(Number(req.params.id));
@@ -131,6 +138,13 @@ router.get('/:id', function (req, res) {
   var inv = invoices.getById(Number(req.params.id));
   if (!inv) return res.status(404).json({ error: 'not found' });
   res.json(inv);
+});
+
+// history: created, updated, issued, paid, ...
+router.get('/:id/events', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  res.json(invoices.events(inv.id));
 });
 
 router.post('/', function (req, res) {

@@ -39,6 +39,27 @@ function itemsFor(invoiceId) {
   return conn().prepare('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY position, id').all(invoiceId);
 }
 
+// history of an invoice. user is taken from setActor() (set per request in the routes)
+var actor = null;
+
+function setActor(userId) {
+  actor = userId || null;
+}
+
+function logEvent(inv, type, data) {
+  conn().prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+    .run(inv.id, inv.account_id, type, data ? JSON.stringify(data) : null, actor);
+}
+
+function events(invoiceId) {
+  return conn().prepare('SELECT e.id, e.type, e.data, e.created_at, e.user_id, u.name AS user_name FROM invoice_events e ' +
+    'LEFT JOIN users u ON u.id = e.user_id WHERE e.invoice_id = ? ORDER BY e.id').all(invoiceId)
+    .map(function (e) {
+      e.data = e.data ? JSON.parse(e.data) : null;
+      return e;
+    });
+}
+
 // invoice with items and customer, used by the detail page and the pdf
 function getById(id) {
   var inv = findById(id);
@@ -119,6 +140,7 @@ function create(accountId, data) {
         data.note || null, totals.total_net, totals.total_tax, totals.total_gross);
     var id = Number(info.lastInsertRowid);
     insertItems(id, items);
+    logEvent({ id: id, account_id: accountId }, 'created', data.copied_from ? { copied_from: data.copied_from } : null);
     c.exec('COMMIT');
     return getById(id);
   } catch (err) {
@@ -152,6 +174,8 @@ function update(id, data) {
         rate, rate / 100, discount,
         data.note !== undefined ? data.note : inv.note,
         totals.total_net, totals.total_tax, totals.total_gross, now(), id);
+    var fields = Object.keys(data);
+    if (fields.length) logEvent(inv, 'updated', { fields: fields });
     c.exec('COMMIT');
   } catch (err) {
     c.exec('ROLLBACK');
@@ -186,23 +210,33 @@ function issue(id) {
   var number = nextNumber(inv.account_id, issueDate.slice(0, 4));
   conn().prepare("UPDATE invoices SET status = 'issued', number = ?, issue_date = ?, due_date = ?, updated_at = ? WHERE id = ?")
     .run(number, issueDate, dueDate, now(), id);
+  logEvent(inv, 'issued', { number: number });
   return getById(id);
 }
 
 function setStatus(id, status) {
+  var inv = findById(id);
+  if (!inv) return null;
   conn().prepare('UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?').run(status, now(), id);
+  logEvent(inv, status === 'cancelled' ? 'cancelled' : 'status', { from: inv.status, to: status });
   return getById(id);
 }
 
 function markPaid(id, paidAt) {
+  var inv = findById(id);
+  if (!inv) return null;
   conn().prepare("UPDATE invoices SET status = 'paid', paid_at = ?, updated_at = ? WHERE id = ?")
     .run(paidAt || utils.today(), now(), id);
+  if (inv.status !== 'paid') logEvent(inv, 'paid', { paid_at: paidAt || utils.today() });
   return getById(id);
 }
 
 // only the note, works for issued invoices too
 function setNote(id, note) {
+  var inv = findById(id);
+  if (!inv) return null;
   conn().prepare('UPDATE invoices SET note = ?, updated_at = ? WHERE id = ?').run(note || null, now(), id);
+  logEvent(inv, 'note', null);
   return getById(id);
 }
 
@@ -214,6 +248,7 @@ function duplicate(id) {
     customer_id: inv.customer_id,
     tax_rate: inv.tax_rate,
     discount_percent: inv.discount_percent,
+    copied_from: inv.number || inv.id,
     items: inv.items.map(function (it) {
       return { description: it.description, quantity: it.quantity, unit_price: it.unit_price };
     })
@@ -254,6 +289,8 @@ function remove(id) {
 }
 
 module.exports = {
+  setActor: setActor,
+  events: events,
   rateFrom: rateFrom,
   computeTotals: computeTotals,
   findById: findById,
