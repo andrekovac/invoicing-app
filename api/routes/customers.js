@@ -6,6 +6,7 @@ const pricing = require('../lib/pricing');
 const mailer = require('../lib/mailer');
 const links = require('../services/payment-links');
 const db = require('../db');
+const validate = require('../lib/validate');
 
 const router = express.Router();
 router.use(auth.requireLogin);
@@ -68,7 +69,7 @@ router.post('/', function (req, res) {
     return res.status(400).json({ error: 'Name fehlt' });
   }
   body.name = String(body.name).trim();
-  if (body.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)) {
+  if (body.email && !validate.isEmail(body.email)) {
     return res.status(400).json({ error: 'E-Mail ungültig' });
   }
   if (!checkTaxRate(body)) return res.status(400).json({ error: 'Steuersatz ungültig' });
@@ -82,6 +83,9 @@ router.put('/:id', function (req, res) {
   var id = c.id;
   if (req.body.name !== undefined && !String(req.body.name).trim()) {
     return res.status(400).json({ error: 'Name fehlt' });
+  }
+  if (req.body.email && !validate.isEmail(req.body.email)) {
+    return res.status(400).json({ error: 'E-Mail ungültig' });
   }
   if (!checkTaxRate(req.body)) return res.status(400).json({ error: 'Steuersatz ungültig' });
   res.json(customers.update(id, req.body || {}));

@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const auth = require('../lib/auth');
 const session = require('../lib/session');
+const validate = require('../lib/validate');
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.post('/signup', function (req, res, next) {
   var email = String(body.email || '').trim().toLowerCase();
   var password = String(body.password || '');
   if (!company) return res.status(400).json({ error: 'Firmenname fehlt' });
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'E-Mail ungültig' });
+  if (!validate.isEmail(email)) return res.status(400).json({ error: 'E-Mail ungültig' });
   if (password.length < 8) return res.status(400).json({ error: 'Passwort zu kurz (min. 8 Zeichen)' });
   var c = db.open();
   if (c.prepare('SELECT id FROM users WHERE lower(email) = ?').get(email)) {

@@ -87,3 +87,9 @@ test('invoices of a customer', async function () {
   assert.ok(res.body.length >= 6);
   res.body.forEach(function (inv) { assert.strictEqual(inv.customer_name, 'Krause GmbH'); });
 });
+
+test('wrong email on update', async function () {
+  const list = await brandt.get('/api/v1/customers?q=Weber');
+  const res = await brandt.put('/api/v1/customers/' + list.body[0].id, { email: 'praxis(at)dr-weber' });
+  assert.strictEqual(res.status, 400);
+});

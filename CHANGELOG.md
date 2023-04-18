@@ -14,3 +14,4 @@ written by hand from them once in a while.
 - `lib/logger.js`: `[scope] text key=value` lines, `LOG_LEVEL`, `LOG_FORMAT=json`
 - `lib/invoice-number.js`: format, parse and normalize `RE-YYYY-NNNN`, lookup by number accepts loose input
 - invoice history (`invoice_events`, `GET /api/v1/invoices/:id/events`)
+- `lib/validate.js` for shared input checks (email, int ranges, whole bodies)
