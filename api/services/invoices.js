@@ -119,6 +119,13 @@ function summary(accountId) {
   };
 }
 
+// items as they go into the db: numbers, price in cents
+function cleanItems(items) {
+  return (items || []).map(function (it) {
+    return { description: it.description, quantity: Number(it.quantity), unit_price: money.roundPrice(it.unit_price) };
+  });
+}
+
 function insertItems(invoiceId, items) {
   var stmt = conn().prepare('INSERT INTO invoice_items (invoice_id, position, description, quantity, unit_price) VALUES (?, ?, ?, ?, ?)');
   items.forEach(function (it, i) {
@@ -127,7 +134,7 @@ function insertItems(invoiceId, items) {
 }
 
 function create(accountId, data) {
-  var items = data.items || [];
+  var items = cleanItems(data.items);
   var rate = rateFrom(data, 19);
   var discount = Number(data.discount_percent) || 0;
   var totals = computeTotals(items, rate, discount);
@@ -162,7 +169,7 @@ function update(id, data) {
   try {
     if (data.items) {
       c.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(id);
-      insertItems(id, data.items);
+      insertItems(id, cleanItems(data.items));
     }
     var totals = keepTotals
       ? { total_net: inv.total_net, total_tax: inv.total_tax, total_gross: inv.total_gross }
@@ -258,7 +265,7 @@ function duplicate(id) {
 function addItem(invoiceId, item) {
   var pos = conn().prepare('SELECT coalesce(max(position), 0) AS p FROM invoice_items WHERE invoice_id = ?').get(invoiceId).p;
   conn().prepare('INSERT INTO invoice_items (invoice_id, position, description, quantity, unit_price) VALUES (?, ?, ?, ?, ?)')
-    .run(invoiceId, pos + 1, item.description, Number(item.quantity), Number(item.unit_price));
+    .run(invoiceId, pos + 1, item.description, Number(item.quantity), money.roundPrice(item.unit_price));
   return update(invoiceId, {});
 }
 
@@ -268,7 +275,7 @@ function updateItem(invoiceId, itemId, item) {
   conn().prepare('UPDATE invoice_items SET description = ?, quantity = ?, unit_price = ? WHERE id = ?')
     .run(item.description !== undefined ? item.description : old.description,
       item.quantity !== undefined ? Number(item.quantity) : old.quantity,
-      item.unit_price !== undefined ? Number(item.unit_price) : old.unit_price,
+      item.unit_price !== undefined ? money.roundPrice(item.unit_price) : old.unit_price,
       itemId);
   return update(invoiceId, {});
 }

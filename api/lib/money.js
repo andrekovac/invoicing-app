@@ -4,6 +4,13 @@ function round2(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
+// unit prices are stored with cents only. Number.EPSILON so 1.005 becomes 1.01 and not 1.00
+function roundPrice(n) {
+  var x = Number(n);
+  if (isNaN(x)) return x;
+  return Math.round((x + (x < 0 ? -Number.EPSILON : Number.EPSILON)) * 100) / 100;
+}
+
 function formatEuro(n) {
   if (n === null || n === undefined || isNaN(n)) return '';
   var neg = n < 0;
@@ -25,4 +32,4 @@ function parseEuro(str) {
   return parseFloat(s);
 }
 
-module.exports = { round2: round2, formatEuro: formatEuro, parseEuro: parseEuro };
+module.exports = { round2: round2, roundPrice: roundPrice, formatEuro: formatEuro, parseEuro: parseEuro };

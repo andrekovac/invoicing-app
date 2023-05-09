@@ -37,3 +37,20 @@ test('round2', function () {
   assert.strictEqual(money.round2(10.006), 10.01);
   assert.strictEqual(money.round2(2.5), 2.5);
 });
+
+test('roundPrice keeps cents', function () {
+  assert.strictEqual(money.roundPrice(12.345), 12.35);
+  assert.strictEqual(money.roundPrice(12.3449), 12.34);
+  assert.strictEqual(money.roundPrice(1.005), 1.01);
+  assert.strictEqual(money.roundPrice(99.9), 99.9);
+  assert.strictEqual(money.roundPrice('4.1800'), 4.18);
+});
+
+test('roundPrice of negative prices', function () {
+  assert.strictEqual(money.roundPrice(-2.345), -2.35);
+});
+
+test('formatEuro of a rounded price', function () {
+  assert.strictEqual(money.formatEuro(money.roundPrice(71.1896)), '71,19 €');
+  assert.strictEqual(money.formatEuro(money.roundPrice(1234.5678)), '1.234,57 €');
+});
