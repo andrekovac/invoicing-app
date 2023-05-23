@@ -12,6 +12,7 @@ const links = require('../services/payment-links');
 const mailer = require('../lib/mailer');
 const reminders = require('../services/reminders');
 const invoiceNumber = require('../lib/invoice-number');
+const validate = require('../lib/validate');
 
 const router = express.Router();
 
@@ -74,12 +75,45 @@ function ownInvoice(req, res) {
   return inv;
 }
 
+var STATUSES = ['draft', 'issued', 'paid', 'cancelled'];
+var MAX_PER_PAGE = 200;
+
+// list with filters. paging only when page or per_page is given, the old admin
+// and the customer page still load everything. X-Total-Count is always set
 router.get('/', function (req, res) {
-  res.json(invoices.list(req.accountId, {
-    status: req.query.status,
-    customer_id: req.query.customer_id,
-    q: req.query.q
-  }));
+  var q = req.query;
+  var opts = {
+    status: q.status,
+    customer_id: q.customer_id,
+    q: q.q ? String(q.q).trim() : '',
+    from: q.from,
+    to: q.to,
+    sort: q.sort,
+    order: q.order
+  };
+  if (opts.status && STATUSES.indexOf(opts.status) === -1) return res.status(400).json({ error: 'Status ungültig' });
+  if ((opts.from && !validate.isDate(opts.from)) || (opts.to && !validate.isDate(opts.to))) {
+    return res.status(400).json({ error: 'Datum ungültig' });
+  }
+  if (opts.sort && !invoices.SORT[opts.sort]) return res.status(400).json({ error: 'Sortierung ungültig' });
+  if (validate.oneOf(opts.order, ['asc', 'desc'], 'desc') === undefined) return res.status(400).json({ error: 'Sortierung ungültig' });
+
+  var paged = q.page !== undefined || q.per_page !== undefined;
+  var page = validate.int(q.page, { min: 1, def: 1 });
+  var perPage = validate.int(q.per_page, { min: 1, max: MAX_PER_PAGE, def: 50 });
+  if (isNaN(page) || isNaN(perPage)) return res.status(400).json({ error: 'page / per_page ungültig' });
+  if (paged) {
+    opts.limit = perPage;
+    opts.offset = (page - 1) * perPage;
+  }
+
+  var total = invoices.count(req.accountId, opts);
+  res.setHeader('X-Total-Count', String(total));
+  if (paged) {
+    res.setHeader('X-Page', String(page));
+    res.setHeader('X-Per-Page', String(perPage));
+  }
+  res.json(invoices.list(req.accountId, opts));
 });
 
 router.get('/summary', function (req, res) {

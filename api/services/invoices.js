@@ -69,6 +69,16 @@ function getById(id) {
   return inv;
 }
 
+var SORT = {
+  id: 'i.id',
+  number: 'i.number',
+  issue_date: 'i.issue_date',
+  due_date: 'i.due_date',
+  total_gross: 'i.total_gross',
+  customer_name: 'c.name',
+  status: 'i.status'
+};
+
 function list(accountId, opts) {
   opts = opts || {};
   var sql = 'SELECT i.*, c.name AS customer_name, ' +
@@ -87,9 +97,49 @@ function list(accountId, opts) {
     sql += ' AND i.customer_id = ?';
     args.push(Number(opts.customer_id));
   }
-  sql += ' ORDER BY i.id DESC';
+  if (opts.from) {
+    sql += ' AND i.issue_date >= ?';
+    args.push(opts.from);
+  }
+  if (opts.to) {
+    sql += ' AND i.issue_date <= ?';
+    args.push(opts.to);
+  }
+  var col = SORT[opts.sort] || SORT.id;
+  var dir = opts.order === 'asc' ? 'ASC' : 'DESC';
+  // drafts have no number and no date, they go last either way
+  sql += ' ORDER BY ' + col + ' IS NULL, ' + col + ' ' + dir + (col !== 'i.id' ? ', i.id DESC' : '');
+  if (opts.limit) {
+    sql += ' LIMIT ? OFFSET ?';
+    args.push(Number(opts.limit), Number(opts.offset) || 0);
+  }
   var stmt = conn().prepare(sql);
   return stmt.all.apply(stmt, args);
+}
+
+// number of invoices for the pager
+function count(accountId, opts) {
+  opts = opts || {};
+  var sql = 'SELECT count(*) AS n FROM invoices WHERE account_id = ?';
+  var args = [accountId];
+  if (opts.status) {
+    sql += ' AND status = ?';
+    args.push(opts.status);
+  }
+  if (opts.customer_id) {
+    sql += ' AND customer_id = ?';
+    args.push(Number(opts.customer_id));
+  }
+  if (opts.from) {
+    sql += ' AND issue_date >= ?';
+    args.push(opts.from);
+  }
+  if (opts.to) {
+    sql += ' AND issue_date <= ?';
+    args.push(opts.to);
+  }
+  var stmt = conn().prepare(sql);
+  return stmt.get.apply(stmt, args).n;
 }
 
 // numbers for the overview: open, overdue, paid this year
@@ -303,7 +353,9 @@ module.exports = {
   findById: findById,
   getById: getById,
   itemsFor: itemsFor,
+  SORT: SORT,
   list: list,
+  count: count,
   summary: summary,
   nextNumber: nextNumber,
   findByNumber: findByNumber,
