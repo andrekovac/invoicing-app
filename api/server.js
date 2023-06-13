@@ -1,4 +1,5 @@
 const path = require('path');
+const url = require('url');
 const express = require('express');
 const db = require('./db');
 const session = require('./lib/session');
@@ -38,6 +39,19 @@ app.use('/api/v1/invoices', require('./routes/invoices'));
 app.use('/api/v1/payments', require('./routes/payments'));
 app.use('/api/v1/portal', require('./routes/portal'));
 app.use('/api/v1/admin', require('./routes/admin'));
+
+// v2 is typescript (node strips the types) and an es module, so it is loaded async.
+// requests that come in before it is loaded wait for it
+const v2 = import(url.pathToFileURL(path.join(__dirname, 'src', 'v2', 'app.ts')).href).catch(function (err) {
+  errorLog.error('api v2 not loaded', err);
+  return null;
+});
+app.use('/api/v2', function (req, res, next) {
+  v2.then(function (mod) {
+    if (!mod) return res.status(503).json({ errors: [{ message: 'v2 not available' }] });
+    mod.router(req, res, next);
+  });
+});
 
 app.use('/api', function (req, res) {
   res.status(404).json({ error: 'not found' });
