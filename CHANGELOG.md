@@ -17,3 +17,4 @@ written by hand from them once in a while.
 - `lib/validate.js` for shared input checks (email, int ranges, whole bodies)
 - paging for `GET /api/v1/invoices`: `page`, `per_page` (max 200), `sort`, `order`, `from`, `to`; headers `X-Total-Count`, `X-Page`, `X-Per-Page`
 - api v2 in TypeScript (`api/src/v2`, read only): `GET /api/v2/invoices`, `GET /api/v2/invoices/:id`. Node runs the .ts files directly (type stripping), no build step
+- api v2: `GET /api/v2/customers`, `/api/v2/customers/:id`, `/api/v2/customers/:id/invoices`; errors as `{ errors: [{ field, message }] }`

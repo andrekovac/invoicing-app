@@ -1,10 +1,11 @@
-// api v2, read only for now: /api/v2/invoices, /api/v2/invoices/:id
+// api v2, read only for now: /api/v2/invoices, /api/v2/invoices/:id, /api/v2/customers, /api/v2/customers/:id
 // mounted from server.js (commonjs) with a dynamic import
 import express from 'express';
 import auth from '../../lib/auth.js';
 import { STATUSES } from './types.ts';
-import type { ErrorBody, FieldError, InvoiceFilter, InvoiceStatus, Page } from './types.ts';
+import type { Customer, CustomerRow, ErrorBody, FieldError, InvoiceFilter, InvoiceStatus, Page } from './types.ts';
 import { getInvoice, listInvoices } from './invoices.ts';
+import { customer, customers } from './repo.ts';
 
 import type { NextFunction, Request, Response } from 'express';
 
@@ -73,6 +74,58 @@ router.get('/invoices/:id', function (req: Request, res: Response) {
   const inv = getInvoice((req as any).accountId, id);
   if (!inv) return fail(res, 404, [{ message: 'invoice not found' }]);
   res.json(inv);
+});
+
+function toCustomer(row: CustomerRow): Customer {
+  return {
+    id: row.id,
+    name: row.name,
+    contactName: row.contact_name,
+    address: { street: row.street, zip: row.zip, city: row.city, country: row.country || null },
+    email: row.email,
+    phone: row.phone,
+    vatId: row.vat_id,
+    defaultTaxRate: row.default_tax_rate,
+    imported: !!row.legacy_no
+  };
+}
+
+router.get('/customers', function (req: Request, res: Response) {
+  const query = req.query as Record<string, unknown>;
+  const errors: FieldError[] = [];
+  const q = query.q !== undefined ? String(query.q).trim() : '';
+  if (query.q !== undefined && q.length < 2) errors.push({ field: 'q', message: 'at least 2 characters' });
+  const { page, perPage } = paging(query, errors);
+  if (errors.length) return fail(res, 400, errors);
+  res.json(pageOf(customers((req as any).accountId, q).map(toCustomer), page, perPage));
+});
+
+function ownCustomer(req: Request, res: Response): CustomerRow | null {
+  const id = positiveInt(req.params.id);
+  if (id === null) {
+    fail(res, 400, [{ field: 'id', message: 'must be a positive integer' }]);
+    return null;
+  }
+  const row = customer(id);
+  if (!row || row.account_id !== (req as any).accountId) {
+    fail(res, 404, [{ message: 'customer not found' }]);
+    return null;
+  }
+  return row;
+}
+
+router.get('/customers/:id', function (req: Request, res: Response) {
+  const row = ownCustomer(req, res);
+  if (row) res.json(toCustomer(row));
+});
+
+router.get('/customers/:id/invoices', function (req: Request, res: Response) {
+  const row = ownCustomer(req, res);
+  if (!row) return;
+  const errors: FieldError[] = [];
+  const { page, perPage } = paging(req.query as Record<string, unknown>, errors);
+  if (errors.length) return fail(res, 400, errors);
+  res.json(pageOf(listInvoices(row.account_id, { customerId: row.id }), page, perPage));
 });
 
 router.use(function (req: Request, res: Response) {

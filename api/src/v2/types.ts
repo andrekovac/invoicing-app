@@ -40,6 +40,23 @@ export interface Invoice extends InvoiceSummary {
   updatedAt: string | null;
 }
 
+export interface Customer {
+  id: number;
+  name: string;
+  contactName: string | null;
+  address: {
+    street: string | null;
+    zip: string | null;
+    city: string | null;
+    country: string | null;
+  };
+  email: string | null;
+  phone: string | null;
+  vatId: string | null;
+  defaultTaxRate: number | null;
+  imported: boolean;
+}
+
 export interface Page<T> {
   data: T[];
   page: number;
