@@ -90,7 +90,7 @@ test('customers', async function () {
   const c = res.body.data[0];
   assert.strictEqual(c.name, 'Krause GmbH');
   assert.strictEqual(c.imported, true);
-  assert.strictEqual(c.address.city, 'Schweinfurt');
+  assert.strictEqual(c.address.street, 'Carl-Benz-Str. 21');
 });
 
 test('customer detail and invoices', async function () {

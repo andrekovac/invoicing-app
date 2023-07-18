@@ -74,6 +74,7 @@ function seed() {
   console.log('[seed] ' + CUSTOMERS.length + ' customers, ' + INVOICES.length + ' invoices');
 
   seedAlbers(conn);
+  require('./fixes-2023').apply();
 }
 
 // account 2: first customer from the old desktop program, data comes from its csv export
