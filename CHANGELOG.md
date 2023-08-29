@@ -19,3 +19,4 @@ written by hand from them once in a while.
 - api v2 in TypeScript (`api/src/v2`, read only): `GET /api/v2/invoices`, `GET /api/v2/invoices/:id`. Node runs the .ts files directly (type stripping), no build step
 - api v2: `GET /api/v2/customers`, `/api/v2/customers/:id`, `/api/v2/customers/:id/invoices`; errors as `{ errors: [{ field, message }] }`
 - seed: `api/seed/fixes-2023.js` (changes made by hand in 2023, e.g. the new address of Krause GmbH)
+- `POST /api/v1/invoices/bulk`: issue, mark paid, cancel or remind several invoices at once

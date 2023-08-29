@@ -140,6 +140,72 @@ router.post('/preview', function (req, res) {
   });
 });
 
+// several invoices at once, from the list (checkboxes):
+//   POST /bulk { action: 'issue' | 'paid' | 'cancel' | 'remind', ids: [1, 2, 3], paid_at? }
+// every invoice on its own, one failing does not stop the others.
+// answer: { done: 2, failed: 1, results: [{ id, ok, error?, number? }] }
+var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind'];
+var BULK_MAX = 100;
+
+function bulkOne(req, action, id) {
+  var inv = invoices.findById(id);
+  if (!inv || inv.account_id !== req.accountId) return { id: id, ok: false, error: 'not found' };
+  switch (action) {
+    case 'issue':
+      if (inv.status !== 'draft') return { id: id, ok: false, error: 'Rechnung ist schon gestellt' };
+      if (!invoices.itemsFor(id).length) return { id: id, ok: false, error: 'Rechnung hat keine Positionen' };
+      return { id: id, ok: true, number: invoices.issue(id).number };
+    case 'paid': {
+      if (inv.status !== 'issued') return { id: id, ok: false, error: 'nur gestellte Rechnungen können bezahlt werden' };
+      var paidAt = req.body.paid_at || utils.today();
+      var open = payments.openAmount(inv);
+      if (open > 0) payments.recordPayment(inv, { amount: open, method: 'transfer', paid_at: paidAt, user_id: req.user.id });
+      invoices.markPaid(id, paidAt);
+      return { id: id, ok: true, number: inv.number };
+    }
+    case 'cancel':
+      if (inv.status === 'cancelled') return { id: id, ok: false, error: 'schon storniert' };
+      if (inv.status === 'paid') return { id: id, ok: false, error: 'bezahlte Rechnungen nicht stornieren' };
+      invoices.setStatus(id, 'cancelled');
+      return { id: id, ok: true, number: inv.number };
+    case 'remind': {
+      var overdue = reminders.overdueInvoices(req.accountId).find(function (i) { return i.id === id; });
+      if (!overdue) return { id: id, ok: false, error: 'Rechnung ist nicht überfällig' };
+      reminders.sendReminder(overdue);
+      return { id: id, ok: true, number: inv.number };
+    }
+  }
+}
+
+router.post('/bulk', function (req, res, next) {
+  var body = req.body || {};
+  if (BULK_ACTIONS.indexOf(body.action) === -1) return res.status(400).json({ error: 'Aktion ungültig' });
+  if (!Array.isArray(body.ids) || !body.ids.length) return res.status(400).json({ error: 'keine Rechnungen gewählt' });
+  if (body.ids.length > BULK_MAX) return res.status(400).json({ error: 'höchstens ' + BULK_MAX + ' Rechnungen auf einmal' });
+  if (body.paid_at && !utils.isDate(body.paid_at)) return res.status(400).json({ error: 'Datum ungültig' });
+  var ids = [];
+  for (var i = 0; i < body.ids.length; i++) {
+    var n = validate.int(body.ids[i], { min: 1 });
+    if (isNaN(n)) return res.status(400).json({ error: 'ids ungültig' });
+    if (ids.indexOf(n) === -1) ids.push(n);
+  }
+  var results = [];
+  try {
+    ids.forEach(function (id) {
+      try {
+        results.push(bulkOne(req, body.action, id));
+      } catch (err) {
+        if (err.status && err.status < 500) results.push({ id: id, ok: false, error: err.message });
+        else throw err;
+      }
+    });
+  } catch (err) {
+    return next(err);
+  }
+  var done = results.filter(function (r) { return r.ok; }).length;
+  res.json({ done: done, failed: results.length - done, results: results });
+});
+
 // overdue invoices with the date of the last reminder
 router.get('/overdue', function (req, res) {
   res.json(reminders.overdueInvoices(req.accountId).map(function (inv) {
