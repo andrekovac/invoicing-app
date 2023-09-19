@@ -28,6 +28,38 @@ function verifyPassword(password, stored, cb) {
   });
 }
 
+// too many wrong passwords: lock the email for a while
+const MAX_FAILED = Number(process.env.LOGIN_MAX_FAILED || 5);
+const LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 15);
+
+function sqlTime(d) {
+  return d.toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function recordLogin(email, ip, ok) {
+  db.open().prepare('INSERT INTO login_attempts (email, ip, ok, created_at) VALUES (?, ?, ?, ?)')
+    .run(email, ip || null, ok ? 1 : 0, sqlTime(new Date()));
+}
+
+// failed tries since the last good login, inside the lock window
+function failedLogins(email, now) {
+  var since = sqlTime(new Date((now || Date.now()) - LOCK_MINUTES * 60 * 1000));
+  var c = db.open();
+  var lastOk = c.prepare('SELECT coalesce(max(id), 0) AS id FROM login_attempts WHERE email = ? AND ok = 1').get(email).id;
+  return c.prepare('SELECT count(*) AS n FROM login_attempts WHERE email = ? AND ok = 0 AND created_at > ? AND id > ?')
+    .get(email, since, lastOk).n;
+}
+
+function isLocked(email, now) {
+  return failedLogins(email, now) >= MAX_FAILED;
+}
+
+// old rows are only noise, called from the login route now and then
+function pruneLogins(days) {
+  var before = sqlTime(new Date(Date.now() - (days || 30) * 24 * 3600 * 1000));
+  return db.open().prepare('DELETE FROM login_attempts WHERE created_at < ?').run(before).changes;
+}
+
 function publicUser(u) {
   if (!u) return null;
   return { id: u.id, account_id: u.account_id, email: u.email, name: u.name, role: u.role };
@@ -56,6 +88,12 @@ module.exports = {
   hashPasswordSync: hashPasswordSync,
   verifyPassword: verifyPassword,
   publicUser: publicUser,
+  recordLogin: recordLogin,
+  failedLogins: failedLogins,
+  isLocked: isLocked,
+  pruneLogins: pruneLogins,
+  MAX_FAILED: MAX_FAILED,
+  LOCK_MINUTES: LOCK_MINUTES,
   requireLogin: requireLogin,
   requireAdmin: requireAdmin
 };

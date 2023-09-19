@@ -20,3 +20,4 @@ written by hand from them once in a while.
 - api v2: `GET /api/v2/customers`, `/api/v2/customers/:id`, `/api/v2/customers/:id/invoices`; errors as `{ errors: [{ field, message }] }`
 - seed: `api/seed/fixes-2023.js` (changes made by hand in 2023, e.g. the new address of Krause GmbH)
 - `POST /api/v1/invoices/bulk`: issue, mark paid, cancel or remind several invoices at once
+- login is locked for 15 minutes after 5 wrong passwords (`login_attempts`, `LOGIN_MAX_FAILED`, `LOGIN_LOCK_MINUTES`)

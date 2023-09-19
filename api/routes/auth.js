@@ -11,11 +11,20 @@ router.post('/login', function (req, res, next) {
   var password = String((req.body && req.body.password) || '');
   if (!email || !password) return res.status(400).json({ error: 'E-Mail und Passwort angeben' });
 
+  if (auth.isLocked(email)) {
+    return res.status(429).json({ error: 'Zu viele Versuche, bitte in ' + auth.LOCK_MINUTES + ' Minuten noch einmal' });
+  }
+  if (Math.random() < 0.01) auth.pruneLogins(30);
+
   var user = db.open().prepare('SELECT * FROM users WHERE lower(email) = ?').get(email);
-  if (!user) return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
+  if (!user) {
+    auth.recordLogin(email, req.ip, false);
+    return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
+  }
 
   auth.verifyPassword(password, user.password_hash, function (err, ok) {
     if (err) return next(err);
+    auth.recordLogin(email, req.ip, ok);
     if (!ok) return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
     var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(user.account_id);
     if (!account || !account.active) return res.status(403).json({ error: 'Zugang gesperrt' });
