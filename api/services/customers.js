@@ -62,4 +62,78 @@ function remove(id) {
   db.open().prepare('DELETE FROM customers WHERE id = ?').run(id);
 }
 
-module.exports = { list: list, findById: findById, create: create, update: update, remove: remove, FIELDS: FIELDS };
+// name for comparing: case, legal form and punctuation do not count
+// "Krause GmbH", "KRAUSE G.m.b.H.", "Krause" -> "krause"
+var LEGAL_FORMS = ['gmbh & co. kg', 'gmbh & co kg', 'gmbh', 'g.m.b.h.', 'mbh', 'ag', 'kg', 'ohg', 'gbr', 'e.k.', 'e.v.', 'ug', '& co.', '& co'];
+
+function compareName(name) {
+  var s = String(name || '').toLowerCase().trim();
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (var i = 0; i < LEGAL_FORMS.length; i++) {
+      var f = LEGAL_FORMS[i];
+      if (s.length > f.length && s.slice(-f.length) === f) {
+        s = s.slice(0, -f.length).trim();
+        changed = true;
+      }
+    }
+  }
+  return s.replace(/[.,;:'"()\-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// groups of customers that look like the same company (two imports, typed twice)
+function duplicates(accountId) {
+  var groups = {};
+  db.open().prepare('SELECT id, name, city, email, legacy_no FROM customers WHERE account_id = ? ORDER BY id').all(accountId)
+    .forEach(function (c) {
+      var key = compareName(c.name);
+      if (!key) return;
+      (groups[key] = groups[key] || []).push(c);
+    });
+  return Object.keys(groups)
+    .filter(function (k) { return groups[k].length > 1; })
+    .sort()
+    .map(function (k) { return { key: k, customers: groups[k] }; });
+}
+
+// move everything from `dropId` to `keepId` and delete `dropId`.
+// empty fields of the kept customer are filled from the other one
+function merge(keepId, dropId) {
+  var keep = findById(keepId);
+  var drop = findById(dropId);
+  if (!keep || !drop || keep.account_id !== drop.account_id || keep.id === drop.id) {
+    var err = new Error('Kunden können nicht zusammengeführt werden');
+    err.status = 400;
+    throw err;
+  }
+  var c = db.open();
+  var fill = {};
+  FIELDS.forEach(function (f) {
+    if ((keep[f] === null || keep[f] === '') && drop[f] !== null && drop[f] !== '') fill[f] = drop[f];
+  });
+  c.exec('BEGIN');
+  try {
+    var moved = c.prepare('UPDATE invoices SET customer_id = ? WHERE customer_id = ?').run(keep.id, drop.id).changes;
+    if (!keep.legacy_no && drop.legacy_no) c.prepare('UPDATE customers SET legacy_no = ? WHERE id = ?').run(drop.legacy_no, keep.id);
+    c.prepare('DELETE FROM customers WHERE id = ?').run(drop.id);
+    update(keep.id, fill);
+    c.exec('COMMIT');
+    return { customer: findById(keep.id), invoices_moved: moved, fields_filled: Object.keys(fill) };
+  } catch (e) {
+    c.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+module.exports = {
+  list: list,
+  findById: findById,
+  create: create,
+  update: update,
+  remove: remove,
+  compareName: compareName,
+  duplicates: duplicates,
+  merge: merge,
+  FIELDS: FIELDS
+};

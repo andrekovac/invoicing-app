@@ -36,6 +36,11 @@ router.get('/', function (req, res) {
   res.json(customers.list(req.accountId, req.query.q));
 });
 
+// customers that look like the same company, for the clean up after an import
+router.get('/duplicates', function (req, res) {
+  res.json(customers.duplicates(req.accountId));
+});
+
 router.get('/:id', function (req, res) {
   var c = own(req, res);
   if (!c) return;
@@ -89,6 +94,21 @@ router.put('/:id', function (req, res) {
   }
   if (!checkTaxRate(req.body)) return res.status(400).json({ error: 'Steuersatz ungültig' });
   res.json(customers.update(id, req.body || {}));
+});
+
+// POST /:id/merge { from: <id> }: invoices of `from` go to :id, then `from` is deleted. admins only
+router.post('/:id/merge', function (req, res, next) {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'keine Berechtigung' });
+  var c = own(req, res);
+  if (!c) return;
+  var from = customers.findById(Number((req.body || {}).from));
+  if (!from || from.account_id !== req.accountId) return res.status(404).json({ error: 'not found' });
+  if (from.id === c.id) return res.status(400).json({ error: 'gleicher Kunde' });
+  try {
+    res.json(customers.merge(c.id, from.id));
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.delete('/:id', function (req, res, next) {

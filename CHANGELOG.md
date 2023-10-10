@@ -21,3 +21,4 @@ written by hand from them once in a while.
 - seed: `api/seed/fixes-2023.js` (changes made by hand in 2023, e.g. the new address of Krause GmbH)
 - `POST /api/v1/invoices/bulk`: issue, mark paid, cancel or remind several invoices at once
 - login is locked for 15 minutes after 5 wrong passwords (`login_attempts`, `LOGIN_MAX_FAILED`, `LOGIN_LOCK_MINUTES`)
+- duplicate customers: `GET /api/v1/customers/duplicates`, `POST /api/v1/customers/:id/merge` (admins)
