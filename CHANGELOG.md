@@ -22,3 +22,4 @@ written by hand from them once in a while.
 - `POST /api/v1/invoices/bulk`: issue, mark paid, cancel or remind several invoices at once
 - login is locked for 15 minutes after 5 wrong passwords (`login_attempts`, `LOGIN_MAX_FAILED`, `LOGIN_LOCK_MINUTES`)
 - duplicate customers: `GET /api/v1/customers/duplicates`, `POST /api/v1/customers/:id/merge` (admins)
+- `api/openapi.yaml`: description of api v1

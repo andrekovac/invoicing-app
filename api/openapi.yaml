@@ -1,0 +1,755 @@
+openapi: 3.0.3
+info:
+  title: Rechnungen API v1
+  version: 1.4.0
+  description: |
+    Api of the invoicing app. All amounts are euros as numbers (119.0), dates are
+    `YYYY-MM-DD`. Login sets the session cookie `rsid`, every other call sends it.
+    Errors come as `{ "error": "text" }` (v1). The read only v2 (`/api/v2`) is not
+    in this file yet.
+servers:
+  - url: http://localhost:4730/api/v1
+security:
+  - session: []
+
+tags:
+  - name: auth
+  - name: customers
+  - name: invoices
+  - name: items
+  - name: payments
+  - name: portal
+  - name: admin
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      security: []
+      summary: Log in, sets the session cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: jonas@agentur-brandt.example }
+                password: { type: string }
+      responses:
+        '200': { description: The user, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: E-Mail oder Passwort falsch }
+        '403': { description: Account is not active }
+        '429': { description: Too many wrong passwords, locked for 15 minutes }
+  /auth/signup:
+    post:
+      tags: [auth]
+      security: []
+      summary: New company with its first user (admin), logs in right away
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company, email, password]
+              properties:
+                company: { type: string }
+                name: { type: string }
+                email: { type: string }
+                password: { type: string, minLength: 8 }
+                plan: { type: string, enum: [basic, pro] }
+      responses:
+        '201': { description: The new user, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: E-Mail exists }
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Log out
+      responses:
+        '204': { description: Logged out }
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Logged in user with account name and plan
+      responses:
+        '200': { description: The user, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/password:
+    post:
+      tags: [auth]
+      summary: Change own password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        '204': { description: Changed }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /customers:
+    get:
+      tags: [customers]
+      summary: Customers of the account, sorted by name, with the open amount
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: 'search in name, city and contact' }
+      responses:
+        '200':
+          description: List
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Customer' } } } }
+    post:
+      tags: [customers]
+      summary: New customer
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CustomerInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /customers/duplicates:
+    get:
+      tags: [customers]
+      summary: Groups of customers that look like the same company
+      responses:
+        '200':
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key: { type: string, example: krause }
+                    customers: { type: array, items: { $ref: '#/components/schemas/Customer' } }
+  /customers/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [customers]
+      summary: One customer
+      responses:
+        '200': { description: Customer, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [customers]
+      summary: Change fields (only the ones sent)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/CustomerInput' } } }
+      responses:
+        '200': { description: Customer, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [customers]
+      summary: Delete a customer without invoices
+      responses:
+        '204': { description: Deleted }
+        '409': { description: Kunde hat noch Rechnungen }
+  /customers/{id}/invoices:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [customers]
+      summary: Invoices of the customer
+      responses:
+        '200':
+          description: List
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/InvoiceListItem' } } } }
+  /customers/{id}/portal-mail:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [customers]
+      summary: Mail with the portal link (outbox)
+      responses:
+        '201': { description: Mail in the outbox, content: { application/json: { schema: { $ref: '#/components/schemas/Mail' } } } }
+        '400': { description: Kunde hat keine E-Mail-Adresse }
+  /customers/{id}/merge:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [customers]
+      summary: Move the invoices of `from` to this customer and delete `from` (admins)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [from], properties: { from: { type: integer } } }
+      responses:
+        '200':
+          description: Merged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customer: { $ref: '#/components/schemas/Customer' }
+                  invoices_moved: { type: integer }
+                  fields_filled: { type: array, items: { type: string } }
+        '403': { description: keine Berechtigung }
+
+  /invoices:
+    get:
+      tags: [invoices]
+      summary: Invoices of the account
+      description: |
+        Without `page` and `per_page` all invoices come back (the old admin and the
+        customer page need that). With one of them the list is paged.
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/Status' } }
+        - { name: q, in: query, schema: { type: string }, description: 'number or customer name' }
+        - { name: customer_id, in: query, schema: { type: integer } }
+        - { name: from, in: query, schema: { type: string, format: date }, description: 'issue date from' }
+        - { name: to, in: query, schema: { type: string, format: date }, description: 'issue date to' }
+        - { name: sort, in: query, schema: { type: string, enum: [id, number, issue_date, due_date, total_gross, customer_name, status] } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        '200':
+          description: List
+          headers:
+            X-Total-Count: { description: number of invoices for the pager, schema: { type: integer } }
+            X-Page: { description: only when paged, schema: { type: integer } }
+            X-Per-Page: { description: only when paged, schema: { type: integer } }
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/InvoiceListItem' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [invoices]
+      summary: New draft
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/InvoiceInput' } } }
+      responses:
+        '201': { description: The draft, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /invoices/summary:
+    get:
+      tags: [invoices]
+      summary: Numbers for the overview (open, overdue, paid this year, drafts)
+      responses:
+        '200': { description: Numbers, content: { application/json: { schema: { $ref: '#/components/schemas/Summary' } } } }
+  /invoices/years:
+    get:
+      tags: [invoices]
+      summary: Years with invoices, newest first
+      responses:
+        '200': { description: Years, content: { application/json: { schema: { type: array, items: { type: string, example: '2023' } } } } }
+  /invoices/preview:
+    post:
+      tags: [invoices]
+      summary: Totals for the form while typing, nothing is saved
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/InvoiceInput' } } }
+      responses:
+        '200': { description: Totals, content: { application/json: { schema: { $ref: '#/components/schemas/Totals' } } } }
+  /invoices/bulk:
+    post:
+      tags: [invoices]
+      summary: One action for several invoices, each on its own
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, ids]
+              properties:
+                action: { type: string, enum: [issue, paid, cancel, remind] }
+                ids: { type: array, items: { type: integer }, maxItems: 100 }
+                paid_at: { type: string, format: date }
+      responses:
+        '200':
+          description: Result per invoice
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  done: { type: integer }
+                  failed: { type: integer }
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        ok: { type: boolean }
+                        number: { type: string }
+                        error: { type: string }
+  /invoices/overdue:
+    get:
+      tags: [invoices]
+      summary: Overdue invoices with the date of the last reminder
+      responses:
+        '200': { description: List }
+  /invoices/by-number/{number}:
+    get:
+      tags: [invoices]
+      summary: Lookup by number, also loose input (re-2021-87, 2021-0087)
+      parameters:
+        - { name: number, in: path, required: true, schema: { type: string, example: RE-2021-0087 } }
+      responses:
+        '200': { description: Invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '400': { description: 'Ungültige Rechnungsnummer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /invoices/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [invoices]
+      summary: Invoice with items and customer
+      responses:
+        '200': { description: Invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [invoices]
+      summary: Save from the form
+      description: Issued invoices keep their totals, only texts, dates and the note change.
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/InvoiceInput' } } }
+      responses:
+        '200': { description: Invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: cancelled, or other number of items on an issued invoice }
+    delete:
+      tags: [invoices]
+      summary: Delete a draft
+      responses:
+        '204': { description: Deleted }
+        '409': { description: nur Entwürfe können gelöscht werden }
+  /invoices/{id}/pdf:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [invoices]
+      summary: PDF of the invoice
+      parameters:
+        - { name: format, in: query, schema: { type: string, enum: [txt] }, description: 'same lines as plain text' }
+        - { name: download, in: query, schema: { type: string }, description: 'any value: as attachment' }
+      responses:
+        '200':
+          description: PDF or text
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string } }
+  /invoices/{id}/events:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [invoices]
+      summary: History (created, updated, issued, paid, cancelled, note)
+      responses:
+        '200':
+          description: Events, oldest first
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Event' } } } }
+  /invoices/{id}/issue:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [invoices]
+      summary: Draft to issued, gives the number (and due date +14 days when empty)
+      responses:
+        '200': { description: Invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '409': { description: Rechnung ist schon gestellt }
+  /invoices/{id}/paid:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [invoices]
+      summary: Mark as paid, the open rest is booked as a transfer
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { paid_at: { type: string, format: date } } }
+      responses:
+        '200': { description: Invoice }
+        '409': { description: nur gestellte Rechnungen können bezahlt werden }
+  /invoices/{id}/copy:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [invoices]
+      summary: Copy as a new draft
+      responses:
+        '201': { description: The copy }
+  /invoices/{id}/mail:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [invoices]
+      summary: Mail text for the customer (to copy by hand)
+      responses:
+        '200':
+          description: Mail text
+          content:
+            application/json:
+              schema: { type: object, properties: { to: { type: string }, subject: { type: string }, body: { type: string } } }
+    post:
+      tags: [invoices]
+      summary: Invoice mail with a payment link into the outbox
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { to: { type: string } } }
+      responses:
+        '201': { description: Mail, content: { application/json: { schema: { $ref: '#/components/schemas/Mail' } } } }
+  /invoices/{id}/remind:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [invoices]
+      summary: Reminder by hand
+      responses:
+        '201': { description: Mail, content: { application/json: { schema: { $ref: '#/components/schemas/Mail' } } } }
+        '409': { description: Rechnung ist nicht überfällig }
+  /invoices/{id}/note:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [invoices]
+      summary: Internal note, also for issued invoices
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { note: { type: string, maxLength: 2000 } } }
+      responses:
+        '200': { description: Invoice }
+  /invoices/{id}/cancel:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [invoices]
+      summary: Cancel
+      responses:
+        '200': { description: Invoice }
+        '409': { description: schon storniert }
+  /invoices/{id}/items:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [items]
+      summary: Add an item to a draft
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ItemInput' } } }
+      responses:
+        '201': { description: Invoice }
+        '409': { description: not a draft }
+  /invoices/{id}/items/{itemId}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+      - { name: itemId, in: path, required: true, schema: { type: integer } }
+    put:
+      tags: [items]
+      summary: Change an item of a draft
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ItemInput' } } }
+      responses:
+        '200': { description: Invoice }
+    delete:
+      tags: [items]
+      summary: Remove an item of a draft
+      responses:
+        '200': { description: Invoice }
+
+  /payments:
+    get:
+      tags: [payments]
+      summary: Payments of the account, or of one invoice with `invoice_id`
+      parameters:
+        - { name: invoice_id, in: query, schema: { type: integer } }
+        - { name: method, in: query, schema: { type: string, enum: [transfer, card] } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: List }
+    post:
+      tags: [payments]
+      summary: Bank transfer, also partial
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoice_id, amount]
+              properties:
+                invoice_id: { type: integer }
+                amount: { oneOf: [{ type: number }, { type: string, example: '50,00' }] }
+                paid_at: { type: string, format: date }
+                reference: { type: string }
+      responses:
+        '201': { description: The payment with the open rest }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /payments/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    delete:
+      tags: [payments]
+      summary: Remove a transfer (card payments only via CardPay)
+      responses:
+        '204': { description: Removed }
+  /payments/link:
+    post:
+      tags: [payments]
+      summary: New payment link for an open invoice
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { invoice_id: { type: integer }, days: { type: integer, minimum: 1, maximum: 365 } } }
+      responses:
+        '201': { description: 'Link { url, token, expires_at }' }
+  /payments/card:
+    post:
+      tags: [payments]
+      summary: Card payment taken in the office
+      responses:
+        '201': { description: Charged }
+        '402': { description: Card declined }
+  /payments/link/{token}:
+    get:
+      tags: [payments]
+      security: []
+      summary: Invoice behind a payment link (no login)
+      parameters: [{ $ref: '#/components/parameters/Token' }]
+      responses:
+        '200': { description: Number, amounts, company }
+        '404': { description: Link ungültig oder abgelaufen }
+  /payments/link/{token}/card:
+    post:
+      tags: [payments]
+      security: []
+      summary: Pay with card from the payment link
+      parameters: [{ $ref: '#/components/parameters/Token' }]
+      responses:
+        '201': { description: Charged }
+
+  /portal:
+    post:
+      tags: [portal]
+      summary: Portal link for a customer
+      responses:
+        '201': { description: Link }
+  /portal/{token}:
+    get:
+      tags: [portal]
+      security: []
+      summary: Open invoices of the customer
+      parameters: [{ $ref: '#/components/parameters/Token' }]
+      responses:
+        '200': { description: Customer and open invoices }
+  /portal/{token}/cart:
+    post:
+      tags: [portal]
+      security: []
+      summary: Sum of the chosen invoices
+      parameters: [{ $ref: '#/components/parameters/Token' }]
+      responses:
+        '200': { description: Sum }
+  /portal/{token}/pay:
+    post:
+      tags: [portal]
+      security: []
+      summary: Pay the chosen invoices with one card payment
+      parameters: [{ $ref: '#/components/parameters/Token' }]
+      responses:
+        '201': { description: Charged }
+  /portal/{token}/invoices/{id}/pdf:
+    get:
+      tags: [portal]
+      security: []
+      summary: PDF of one invoice of the customer
+      parameters:
+        - { $ref: '#/components/parameters/Token' }
+        - { $ref: '#/components/parameters/Id' }
+      responses:
+        '200': { description: PDF }
+
+  /admin/account:
+    get:
+      tags: [admin]
+      summary: Company data
+      responses:
+        '200': { description: Account }
+    put:
+      tags: [admin]
+      summary: Change company data
+      responses:
+        '200': { description: Account }
+  /admin/outbox:
+    get:
+      tags: [admin]
+      summary: Last mails of the outbox
+      responses:
+        '200': { description: Mails }
+  /admin/imports:
+    get:
+      tags: [admin]
+      summary: Imports from the desktop program
+      responses:
+        '200': { description: Imports }
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: Users of the account
+      responses:
+        '200': { description: Users }
+    post:
+      tags: [admin]
+      summary: New user
+      responses:
+        '201': { description: User }
+  /admin/users/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [admin]
+      summary: Change user (name, role, password)
+      responses:
+        '200': { description: User }
+    delete:
+      tags: [admin]
+      summary: Delete user
+      responses:
+        '204': { description: Deleted }
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: rsid
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    Token:
+      name: token
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Wrong input
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Unauthorized:
+      description: nicht angemeldet
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    Status:
+      type: string
+      enum: [draft, issued, paid, cancelled]
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        account_id: { type: integer }
+        email: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [user, admin] }
+        account_name: { type: string }
+        plan: { type: string }
+    CustomerInput:
+      type: object
+      properties:
+        name: { type: string }
+        contact_name: { type: string }
+        street: { type: string }
+        zip: { type: string }
+        city: { type: string }
+        country: { type: string, description: free text }
+        email: { type: string }
+        phone: { type: string }
+        vat_id: { type: string }
+        default_tax_rate: { type: integer, enum: [19, 7, 0], nullable: true }
+    Customer:
+      allOf:
+        - $ref: '#/components/schemas/CustomerInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            account_id: { type: integer }
+            legacy_no: { type: string, nullable: true }
+            open_amount: { type: number }
+            created_at: { type: string }
+    ItemInput:
+      type: object
+      properties:
+        description: { type: string }
+        quantity: { type: number }
+        unit_price: { oneOf: [{ type: number }, { type: string, example: '12,50' }] }
+    Item:
+      type: object
+      properties:
+        id: { type: integer }
+        position: { type: integer }
+        description: { type: string }
+        quantity: { type: number }
+        unit_price: { type: number }
+    InvoiceInput:
+      type: object
+      properties:
+        customer_id: { type: integer }
+        tax_rate: { type: integer, enum: [19, 7, 0] }
+        vat_rate: { type: number, description: 'old clients: 0.19', deprecated: true }
+        discount_percent: { type: number, minimum: 0, maximum: 50 }
+        issue_date: { type: string, format: date }
+        due_date: { type: string, format: date }
+        note: { type: string }
+        items: { type: array, items: { $ref: '#/components/schemas/ItemInput' } }
+    Totals:
+      type: object
+      properties:
+        total_net: { type: number }
+        total_tax: { type: number }
+        total_gross: { type: number }
+    InvoiceListItem:
+      allOf:
+        - $ref: '#/components/schemas/Totals'
+        - type: object
+          properties:
+            id: { type: integer }
+            number: { type: string, nullable: true, example: RE-2023-0042 }
+            status: { $ref: '#/components/schemas/Status' }
+            customer_id: { type: integer }
+            customer_name: { type: string }
+            issue_date: { type: string, nullable: true }
+            due_date: { type: string, nullable: true }
+            paid_at: { type: string, nullable: true }
+            tax_rate: { type: integer }
+            discount_percent: { type: number }
+            paid_amount: { type: number }
+    Invoice:
+      allOf:
+        - $ref: '#/components/schemas/InvoiceListItem'
+        - type: object
+          properties:
+            note: { type: string, nullable: true }
+            items: { type: array, items: { $ref: '#/components/schemas/Item' } }
+            customer: { $ref: '#/components/schemas/Customer' }
+    Summary:
+      type: object
+      properties:
+        open_count: { type: integer }
+        open_gross: { type: number }
+        overdue_count: { type: integer }
+        overdue_gross: { type: number }
+        paid_this_year: { type: number }
+        draft_count: { type: integer }
+        draft_gross: { type: number }
+    Event:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, example: issued }
+        data: { type: object, nullable: true }
+        user_id: { type: integer, nullable: true }
+        user_name: { type: string, nullable: true }
+        created_at: { type: string }
+    Mail:
+      type: object
+      properties:
+        id: { type: integer }
+        template: { type: string }
+        to_email: { type: string }
+        subject: { type: string }
+        body: { type: string }
+        created_at: { type: string }
