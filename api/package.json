@@ -10,6 +10,7 @@
     "seed": "node --disable-warning=ExperimentalWarning seed/seed.js",
     "import": "node --disable-warning=ExperimentalWarning scripts/import-legacy.js",
     "outbox": "node --disable-warning=ExperimentalWarning scripts/send-outbox.js",
+    "check:numbers": "node --disable-warning=ExperimentalWarning scripts/check-numbers.js",
     "test": "node --disable-warning=ExperimentalWarning --test"
   },
   "dependencies": {

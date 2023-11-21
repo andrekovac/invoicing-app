@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('../db');
 const auth = require('../lib/auth');
+const invoiceNumber = require('../lib/invoice-number');
 
 const router = express.Router();
 router.use(auth.requireAdmin);
@@ -39,6 +40,14 @@ router.get('/outbox', function (req, res) {
 // imports from the old desktop program
 router.get('/imports', function (req, res) {
   res.json(db.open().prepare('SELECT * FROM imports WHERE account_id = ? ORDER BY id DESC').all(req.accountId));
+});
+
+// missing or double invoice numbers per year (imported numbers from the desktop program count too)
+router.get('/number-check', function (req, res) {
+  var rows = db.open().prepare("SELECT number FROM invoices WHERE account_id = ? AND number IS NOT NULL").all(req.accountId);
+  var year = req.query.year ? Number(req.query.year) : null;
+  var result = invoiceNumber.gaps(rows.map(function (r) { return r.number; }));
+  res.json(year ? result.filter(function (y) { return y.year === year; }) : result);
 });
 
 router.get('/users', function (req, res) {

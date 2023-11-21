@@ -35,3 +35,23 @@ test('first number of a year', function () {
   assert.strictEqual(invoiceNumber.next(null, 2024), 'RE-2024-0001');
   assert.strictEqual(invoiceNumber.next('RE-2023-0041', 2024), 'RE-2024-0001');
 });
+
+test('gaps in a year', function () {
+  const result = invoiceNumber.gaps(['RE-2023-0001', 'RE-2023-0004', 'RE-2023-0002', 'RE-2022-0001']);
+  assert.deepStrictEqual(result.map(function (y) { return y.year; }), [2022, 2023]);
+  assert.deepStrictEqual(result[1].missing, ['RE-2023-0003']);
+  assert.strictEqual(result[1].first, 'RE-2023-0001');
+  assert.strictEqual(result[1].last, 'RE-2023-0004');
+  assert.deepStrictEqual(result[0].missing, []);
+});
+
+test('double numbers', function () {
+  const result = invoiceNumber.gaps(['RE-2023-0001', 'RE-2023-0001', 'RE-2023-0002']);
+  assert.deepStrictEqual(result[0].duplicates, ['RE-2023-0001']);
+  assert.deepStrictEqual(result[0].missing, []);
+});
+
+test('gaps can start at the first number', function () {
+  const result = invoiceNumber.gaps(['RE-2019-0012', 'RE-2019-0014'], { fromOne: false });
+  assert.deepStrictEqual(result[0].missing, ['RE-2019-0013']);
+});

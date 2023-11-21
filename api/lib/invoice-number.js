@@ -43,4 +43,33 @@ function next(last, year) {
   return format(year, 1);
 }
 
-module.exports = { PREFIX, PATTERN, format, isValid, parse, normalize, next };
+// missing numbers per year. the tax office (GoBD) wants numbers without gaps,
+// so this goes into the yearly check. numbers in another format are ignored
+//   gaps(['RE-2023-0001', 'RE-2023-0004']) -> [{ year: 2023, missing: ['RE-2023-0002', 'RE-2023-0003'] }]
+function gaps(numbers, opts) {
+  opts = opts || {};
+  const max = opts.max || 500;
+  const byYear = {};
+  (numbers || []).forEach(function (n) {
+    const p = parse(n);
+    if (!p) return;
+    (byYear[p.year] = byYear[p.year] || []).push(p.seq);
+  });
+  return Object.keys(byYear).sort().map(function (year) {
+    const seqs = byYear[year].sort(function (a, b) { return a - b; });
+    const missing = [];
+    const duplicates = [];
+    let expected = opts.fromOne === false ? seqs[0] : 1;
+    for (let i = 0; i < seqs.length; i++) {
+      if (i > 0 && seqs[i] === seqs[i - 1]) {
+        duplicates.push(format(year, seqs[i]));
+        continue;
+      }
+      for (let s = expected; s < seqs[i] && missing.length < max; s++) missing.push(format(year, s));
+      expected = seqs[i] + 1;
+    }
+    return { year: Number(year), first: format(year, seqs[0]), last: format(year, seqs[seqs.length - 1]), count: seqs.length, missing: missing, duplicates: duplicates };
+  });
+}
+
+module.exports = { PREFIX, PATTERN, format, isValid, parse, normalize, next, gaps };

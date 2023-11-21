@@ -23,3 +23,4 @@ written by hand from them once in a while.
 - login is locked for 15 minutes after 5 wrong passwords (`login_attempts`, `LOGIN_MAX_FAILED`, `LOGIN_LOCK_MINUTES`)
 - duplicate customers: `GET /api/v1/customers/duplicates`, `POST /api/v1/customers/:id/merge` (admins)
 - `api/openapi.yaml`: description of api v1
+- invoice number check (gaps and doubles per year): `GET /api/v1/admin/number-check`, `npm run check:numbers -w api`
