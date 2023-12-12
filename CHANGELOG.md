@@ -6,6 +6,13 @@ written by hand from them once in a while.
 
 ## Unreleased
 
+### Fixed
+
+- login lock uses the client ip behind the proxy (`trust proxy` loopback)
+- v2 server errors go through the logger
+
+## 2023
+
 ### Added
 
 - `.editorconfig` (2 spaces, LF, the legacy CSV exports keep CRLF)

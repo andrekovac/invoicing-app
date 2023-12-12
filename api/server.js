@@ -9,6 +9,8 @@ const errorLog = require('./lib/logger')('error');
 const PORT = process.env.PORT || 4730;
 
 const app = express();
+// behind the nginx on the same machine: req.ip is the client, not 127.0.0.1 (login lock)
+app.set('trust proxy', 'loopback');
 app.use(express.json({ limit: '1mb' }));
 
 // request log

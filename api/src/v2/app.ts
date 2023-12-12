@@ -2,6 +2,7 @@
 // mounted from server.js (commonjs) with a dynamic import
 import express from 'express';
 import auth from '../../lib/auth.js';
+import logger from '../../lib/logger.js';
 import { STATUSES } from './types.ts';
 import type { Customer, CustomerRow, ErrorBody, FieldError, InvoiceFilter, InvoiceStatus, Page } from './types.ts';
 import { getInvoice, listInvoices } from './invoices.ts';
@@ -10,6 +11,7 @@ import { customer, customers } from './repo.ts';
 import type { NextFunction, Request, Response } from 'express';
 
 const MAX_PER_PAGE = 100;
+const log = logger('v2');
 
 export const router = express.Router();
 
@@ -133,6 +135,6 @@ router.use(function (req: Request, res: Response) {
 });
 
 router.use(function (err: Error & { status?: number }, req: Request, res: Response, next: NextFunction) {
-  if (!err.status || err.status >= 500) console.error('[v2]', err);
+  if (!err.status || err.status >= 500) log.error(req.method + ' ' + req.originalUrl, err);
   fail(res, err.status || 500, [{ message: err.status && err.status < 500 ? err.message : 'server error' }]);
 });

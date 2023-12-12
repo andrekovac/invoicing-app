@@ -2,6 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const helpers = require('./helpers');
+const pricing = require('../lib/pricing');
+const money = require('../lib/money');
 
 let srv;
 let api;
@@ -47,6 +49,9 @@ test('mark several as paid, one is still a draft', async function () {
   const paid = await api.get('/api/v1/invoices/' + a);
   assert.strictEqual(paid.body.status, 'paid');
   assert.strictEqual(paid.body.paid_at, '2023-08-01');
+  const pays = await api.get('/api/v1/payments?invoice_id=' + a);
+  assert.strictEqual(pays.body.paid, money.round2(pricing.gross(50, 19)));
+  assert.strictEqual(pays.body.payments[0].paid_at, '2023-08-01');
 });
 
 test('cancel skips paid invoices', async function () {

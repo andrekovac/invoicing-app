@@ -6,6 +6,8 @@ const assert = require('node:assert');
 const db = require('../db');
 const invoices = require('../services/invoices');
 const pdf = require('../lib/pdf');
+const pricing = require('../lib/pricing');
+const money = require('../lib/money');
 
 test.before(function () {
   db.open();
@@ -65,4 +67,5 @@ test('prices are saved with cents', function () {
   var inv = invoices.create(1, { customer_id: 1, items: [{ description: 'Druck', quantity: 100, unit_price: 0.1849 }] });
   assert.strictEqual(inv.items[0].unit_price, 0.18);
   assert.strictEqual(inv.total_net, 18);
+  assert.strictEqual(inv.total_gross, money.round2(pricing.gross(18, 19)));
 });
