@@ -5,6 +5,7 @@ import { setUser } from '../../session.js';
 
 @Component({
   selector: 'app-login',
+  standalone: false,
   template: `
     <div class="card" style="max-width: 360px; margin: 60px auto;">
       <h2>Anmelden</h2>

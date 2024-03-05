@@ -7,6 +7,7 @@ import { CardData } from './card-form.component';
 // no login here, the token in the url is the access
 @Component({
   selector: 'app-portal',
+  standalone: false,
   templateUrl: './portal.component.html'
 })
 export class PortalComponent implements OnInit {

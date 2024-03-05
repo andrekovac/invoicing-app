@@ -4,6 +4,7 @@ import { CustomerService, Customer } from '../services/customer.service';
 
 @Component({
   selector: 'app-customer-edit',
+  standalone: false,
   templateUrl: './customer-edit.component.html'
 })
 export class CustomerEditComponent implements OnInit {

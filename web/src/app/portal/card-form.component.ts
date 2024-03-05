@@ -10,6 +10,7 @@ export interface CardData {
 // card fields for the portal and the payment link page
 @Component({
   selector: 'app-card-form',
+  standalone: false,
   template: `
     <form (ngSubmit)="submit()">
       <div class="form-row">

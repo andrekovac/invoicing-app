@@ -5,6 +5,7 @@ import { post } from '../api/client.js';
 
 @Component({
   selector: 'app-root',
+  standalone: false,
   template: `
     <header class="top" *ngIf="user()">
       <strong>Rechnungen</strong>

@@ -4,6 +4,7 @@ import { CustomerService, Customer } from '../services/customer.service';
 
 @Component({
   selector: 'app-customer-list',
+  standalone: false,
   template: `
     <h1>Kunden</h1>
     <div class="toolbar">

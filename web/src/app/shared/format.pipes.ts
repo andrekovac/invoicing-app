@@ -1,7 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 // 1234.5 -> "1.234,50 €" (same as lib/money.js formatEuro in the api)
-@Pipe({ name: 'euro' })
+@Pipe({ name: 'euro', standalone: false })
 export class EuroPipe implements PipeTransform {
   transform(n: number | null | undefined): string {
     if (n === null || n === undefined || isNaN(n)) return '';
@@ -11,7 +11,7 @@ export class EuroPipe implements PipeTransform {
   }
 }
 
-@Pipe({ name: 'dateDe' })
+@Pipe({ name: 'dateDe', standalone: false })
 export class DateDePipe implements PipeTransform {
   transform(s: string | null | undefined): string {
     if (!s) return '';
@@ -22,7 +22,7 @@ export class DateDePipe implements PipeTransform {
 
 const STATUS: { [k: string]: string } = { draft: 'Entwurf', issued: 'Gestellt', paid: 'Bezahlt', cancelled: 'Storniert' };
 
-@Pipe({ name: 'status' })
+@Pipe({ name: 'status', standalone: false })
 export class StatusPipe implements PipeTransform {
   transform(s: string): string {
     return STATUS[s] || s;

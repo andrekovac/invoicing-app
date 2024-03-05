@@ -15,6 +15,7 @@ interface OverdueRow {
 // overdue invoices. the job sends the first reminder by itself, here you can send one by hand
 @Component({
   selector: 'app-overdue',
+  standalone: false,
   template: `
     <h1>Überfällig</h1>
     <p class="muted">Die erste Zahlungserinnerung geht automatisch raus (stündlich geprüft).</p>

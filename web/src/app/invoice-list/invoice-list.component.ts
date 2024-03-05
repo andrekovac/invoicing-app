@@ -4,6 +4,7 @@ import { PaymentService } from '../services/payment.service';
 
 @Component({
   selector: 'app-invoice-list',
+  standalone: false,
   templateUrl: './invoice-list.component.html'
 })
 export class InvoiceListComponent implements OnInit {

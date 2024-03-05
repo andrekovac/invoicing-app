@@ -5,6 +5,7 @@ import { getUser } from '../../session.js';
 // admin only (the api answers 403 for normal users)
 @Component({
   selector: 'app-settings',
+  standalone: false,
   templateUrl: './settings.component.html'
 })
 export class SettingsComponent implements OnInit {

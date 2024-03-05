@@ -4,11 +4,13 @@
   "private": true,
   "description": "Rechnungen - small invoicing tool",
   "workspaces": [
-    "api"
+    "api",
+    "web"
   ],
   "scripts": {
     "dev:api": "npm run dev -w api",
-    "dev:web": "npm --prefix web start",
+    "dev:web": "npm start -w web",
+    "build:web": "npm run build -w web",
     "test": "npm test -w api",
     "db:reset": "npm run db:reset -w api"
   },

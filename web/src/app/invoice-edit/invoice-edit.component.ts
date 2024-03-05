@@ -13,6 +13,7 @@ interface FormItem {
 // create and edit invoices. drafts: everything, issued: texts, dates and note only
 @Component({
   selector: 'app-invoice-edit',
+  standalone: false,
   templateUrl: './invoice-edit.component.html'
 })
 export class InvoiceEditComponent implements OnInit {

@@ -6,6 +6,7 @@ import { CardData } from './card-form.component';
 // /pay/<token> from the invoice mail: pay one invoice
 @Component({
   selector: 'app-pay-link',
+  standalone: false,
   template: `
     <div class="card" style="max-width: 520px; margin: 40px auto;">
       <p class="error" *ngIf="error">{{ error }}</p>
