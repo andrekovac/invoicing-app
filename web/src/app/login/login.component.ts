@@ -1,11 +1,13 @@
 import { Component } from '@angular/core';
+import { NgIf } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { post, get } from '../../api/client.js';
 import { setUser } from '../../session.js';
 
 @Component({
   selector: 'app-login',
-  standalone: false,
+  imports: [NgIf, FormsModule],
   template: `
     <div class="card" style="max-width: 360px; margin: 60px auto;">
       <h2>Anmelden</h2>

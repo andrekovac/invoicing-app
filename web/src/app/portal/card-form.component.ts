@@ -1,4 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { EuroPipe } from '../shared/format.pipes';
 
 export interface CardData {
   number: string;
@@ -10,7 +12,7 @@ export interface CardData {
 // card fields for the portal and the payment link page
 @Component({
   selector: 'app-card-form',
-  standalone: false,
+  imports: [FormsModule, EuroPipe],
   template: `
     <form (ngSubmit)="submit()">
       <div class="form-row">

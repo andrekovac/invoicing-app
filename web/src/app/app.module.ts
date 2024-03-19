@@ -5,7 +5,6 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { LoginComponent } from './login/login.component';
 import { InvoiceListComponent } from './invoice-list/invoice-list.component';
 import { InvoiceEditComponent } from './invoice-edit/invoice-edit.component';
 import { CustomerListComponent } from './customers/customer-list.component';
@@ -14,14 +13,14 @@ import { PaymentListComponent } from './payments/payment-list.component';
 import { OverdueComponent } from './overdue/overdue.component';
 import { SettingsComponent } from './settings/settings.component';
 import { PortalComponent } from './portal/portal.component';
-import { PayLinkComponent } from './portal/pay-link.component';
 import { CardFormComponent } from './portal/card-form.component';
 import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
 
+// the older pages are still declared here. new pages are standalone components
+// (see app-routing.module.ts), move the others over when you touch them anyway
 @NgModule({
   declarations: [
     AppComponent,
-    LoginComponent,
     InvoiceListComponent,
     InvoiceEditComponent,
     CustomerListComponent,
@@ -29,17 +28,16 @@ import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
     PaymentListComponent,
     OverdueComponent,
     SettingsComponent,
-    PortalComponent,
-    PayLinkComponent,
-    CardFormComponent,
-    EuroPipe,
-    DateDePipe,
-    StatusPipe
+    PortalComponent
   ],
   imports: [
     BrowserModule,
     FormsModule,
-    AppRoutingModule
+    AppRoutingModule,
+    CardFormComponent,
+    EuroPipe,
+    DateDePipe,
+    StatusPipe
   ],
   providers: [provideHttpClient(withInterceptorsFromDi())],
   bootstrap: [AppComponent]

@@ -1,12 +1,14 @@
 import { Component, OnInit } from '@angular/core';
+import { NgIf } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { get, post } from '../../api/client.js';
-import { CardData } from './card-form.component';
+import { CardData, CardFormComponent } from './card-form.component';
+import { EuroPipe, DateDePipe } from '../shared/format.pipes';
 
 // /pay/<token> from the invoice mail: pay one invoice
 @Component({
   selector: 'app-pay-link',
-  standalone: false,
+  imports: [NgIf, CardFormComponent, EuroPipe, DateDePipe],
   template: `
     <div class="card" style="max-width: 520px; margin: 40px auto;">
       <p class="error" *ngIf="error">{{ error }}</p>
