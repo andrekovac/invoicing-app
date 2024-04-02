@@ -34,3 +34,6 @@ button:disabled { opacity: .5; cursor: default; }
 .summary { display: flex; gap: 22px; margin-bottom: 14px; }
 .summary b { font-size: 16px; }
 .toolbar .spacer { flex: 1; }
+.view-head { display: flex; justify-content: space-between; gap: 20px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+tfoot td { border-bottom: none; }

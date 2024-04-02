@@ -33,7 +33,7 @@
   </thead>
   <tbody>
     <tr *ngFor="let inv of invoices">
-      <td><a [routerLink]="['/invoices', inv.id, 'edit']">{{ inv.number || '(Entwurf)' }}</a></td>
+      <td><a [routerLink]="inv.status === 'draft' ? ['/invoices', inv.id, 'edit'] : ['/invoices', inv.id]">{{ inv.number || '(Entwurf)' }}</a></td>
       <td>{{ inv.customer_name }}</td>
       <td>{{ inv.issue_date | dateDe }}</td>
       <td>{{ inv.due_date | dateDe }}</td>
