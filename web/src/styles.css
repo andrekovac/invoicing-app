@@ -37,3 +37,7 @@ button:disabled { opacity: .5; cursor: default; }
 .view-head { display: flex; justify-content: space-between; gap: 20px; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 tfoot td { border-bottom: none; }
+th.click { cursor: pointer; user-select: none; }
+.pager { display: flex; gap: 4px; align-items: center; margin-top: 12px; }
+.pager button { min-width: 32px; padding: 4px 8px; }
+.pager .muted { margin-left: 10px; }

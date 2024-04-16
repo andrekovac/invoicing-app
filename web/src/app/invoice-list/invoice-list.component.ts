@@ -12,6 +12,11 @@ export class InvoiceListComponent implements OnInit {
   summary: Summary | null = null;
   q = '';
   status = '';
+  sort = 'id';
+  order: 'asc' | 'desc' = 'desc';
+  page = 1;
+  perPage = 25;
+  total = 0;
   loading = false;
   error = '';
   info = '';
@@ -23,12 +28,39 @@ export class InvoiceListComponent implements OnInit {
     this.invoiceService.summary().subscribe(s => this.summary = s);
   }
 
+  // new search: back to page 1
+  search(): void {
+    this.page = 1;
+    this.load();
+  }
+
+  goTo(p: number): void {
+    this.page = p;
+    this.load();
+  }
+
+  sortBy(col: string): void {
+    if (this.sort === col) this.order = this.order === 'asc' ? 'desc' : 'asc';
+    else {
+      this.sort = col;
+      this.order = col === 'customer_name' || col === 'number' ? 'asc' : 'desc';
+    }
+    this.search();
+  }
+
+  arrow(col: string): string {
+    if (this.sort !== col) return '';
+    return this.order === 'asc' ? ' ▲' : ' ▼';
+  }
+
   load(): void {
     this.loading = true;
     this.error = '';
-    this.invoiceService.list({ q: this.q, status: this.status }).subscribe(
-      rows => {
-        this.invoices = rows;
+    const filter = { q: this.q, status: this.status, sort: this.sort, order: this.order };
+    this.invoiceService.page(filter, this.page, this.perPage).subscribe(
+      res => {
+        this.invoices = res.rows;
+        this.total = res.total;
         this.loading = false;
       },
       err => {

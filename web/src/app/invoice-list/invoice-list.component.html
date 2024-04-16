@@ -8,15 +8,15 @@
 </div>
 
 <div class="toolbar">
-  <input type="search" placeholder="Nummer oder Kunde" [(ngModel)]="q" (keyup.enter)="load()">
-  <select [(ngModel)]="status" (change)="load()">
+  <input type="search" placeholder="Nummer oder Kunde" [(ngModel)]="q" (keyup.enter)="search()">
+  <select [(ngModel)]="status" (change)="search()">
     <option value="">Alle</option>
     <option value="draft">Entwürfe</option>
     <option value="issued">Gestellt</option>
     <option value="paid">Bezahlt</option>
     <option value="cancelled">Storniert</option>
   </select>
-  <button class="secondary" (click)="load()">Suchen</button>
+  <button class="secondary" (click)="search()">Suchen</button>
   <span class="spacer"></span>
   <button routerLink="/invoices/new">Neue Rechnung</button>
   <span class="muted" *ngIf="loading">lädt ...</span>
@@ -28,7 +28,14 @@
 <table>
   <thead>
     <tr>
-      <th>Nummer</th><th>Kunde</th><th>Datum</th><th>Fällig</th><th>Status</th><th class="num">Brutto</th><th class="num">Offen</th><th></th>
+      <th class="click" (click)="sortBy('number')">Nummer{{ arrow('number') }}</th>
+      <th class="click" (click)="sortBy('customer_name')">Kunde{{ arrow('customer_name') }}</th>
+      <th class="click" (click)="sortBy('issue_date')">Datum{{ arrow('issue_date') }}</th>
+      <th class="click" (click)="sortBy('due_date')">Fällig{{ arrow('due_date') }}</th>
+      <th>Status</th>
+      <th class="num click" (click)="sortBy('total_gross')">Brutto{{ arrow('total_gross') }}</th>
+      <th class="num">Offen</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -48,3 +55,5 @@
     <tr *ngIf="!loading && !invoices.length"><td colspan="8" class="muted">Keine Rechnungen</td></tr>
   </tbody>
 </table>
+
+<app-pager [total]="total" [perPage]="perPage" [page]="page" (pageChange)="goTo($event)"></app-pager>

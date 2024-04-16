@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface Invoice {
   id: number;
@@ -22,6 +23,23 @@ export interface Invoice {
   customer?: any;
 }
 
+export interface InvoiceFilter {
+  q?: string;
+  status?: string;
+  customer_id?: number;
+  from?: string;
+  to?: string;
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+
+export interface InvoicePage {
+  rows: Invoice[];
+  total: number;
+  page: number;
+  perPage: number;
+}
+
 export interface Summary {
   open_count: number;
   open_gross: number;
@@ -38,13 +56,31 @@ export class InvoiceService {
 
   constructor(private http: HttpClient) { }
 
-  list(filter: { q?: string; status?: string; customer_id?: number } = {}): Observable<Invoice[]> {
+  private params(filter: InvoiceFilter): HttpParams {
     let params = new HttpParams();
     Object.keys(filter).forEach(k => {
       const v = (filter as any)[k];
       if (v !== undefined && v !== null && v !== '') params = params.set(k, String(v));
     });
-    return this.http.get<Invoice[]>(this.base, { params });
+    return params;
+  }
+
+  // everything at once (payments page, customer page)
+  list(filter: InvoiceFilter = {}): Observable<Invoice[]> {
+    return this.http.get<Invoice[]>(this.base, { params: this.params(filter) });
+  }
+
+  // one page, total from X-Total-Count
+  page(filter: InvoiceFilter, page: number, perPage: number): Observable<InvoicePage> {
+    const params = this.params(filter).set('page', String(page)).set('per_page', String(perPage));
+    return this.http.get<Invoice[]>(this.base, { params, observe: 'response' }).pipe(
+      map(res => ({
+        rows: res.body || [],
+        total: Number(res.headers.get('X-Total-Count')) || 0,
+        page: Number(res.headers.get('X-Page')) || page,
+        perPage: Number(res.headers.get('X-Per-Page')) || perPage
+      }))
+    );
   }
 
   summary(): Observable<Summary> {

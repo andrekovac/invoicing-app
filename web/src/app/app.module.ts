@@ -14,6 +14,7 @@ import { OverdueComponent } from './overdue/overdue.component';
 import { SettingsComponent } from './settings/settings.component';
 import { PortalComponent } from './portal/portal.component';
 import { CardFormComponent } from './portal/card-form.component';
+import { PagerComponent } from './shared/pager.component';
 import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
 
 // the older pages are still declared here. new pages are standalone components
@@ -35,6 +36,7 @@ import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
     FormsModule,
     AppRoutingModule,
     CardFormComponent,
+    PagerComponent,
     EuroPipe,
     DateDePipe,
     StatusPipe
