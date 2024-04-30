@@ -36,6 +36,14 @@ router.get('/', function (req, res) {
   res.json(customers.list(req.accountId, req.query.q));
 });
 
+// GET /search?q=mül&with_open=1  for the customer search page (name only, at least 2 letters)
+router.get('/search', function (req, res) {
+  var q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.status(400).json({ error: 'mindestens 2 Zeichen' });
+  if (q.length > 100) return res.status(400).json({ error: 'Suchbegriff zu lang' });
+  res.json(customers.search(req.accountId, q, { with_open: req.query.with_open === '1', limit: req.query.limit }));
+});
+
 // customers that look like the same company, for the clean up after an import
 router.get('/duplicates', function (req, res) {
   res.json(customers.duplicates(req.accountId));

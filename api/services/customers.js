@@ -17,6 +17,30 @@ function list(accountId, q) {
   return db.open().prepare(sql).all.apply(db.open().prepare(sql), args);
 }
 
+// search box of the customer search page: part of the name, any case.
+// with invoice count, open amount and the date of the last invoice
+var SEARCH_LIMIT = 50;
+
+function search(accountId, q, opts) {
+  opts = opts || {};
+  var limit = Math.min(Number(opts.limit) || SEARCH_LIMIT, SEARCH_LIMIT);
+  var sql = 'SELECT c.id, c.name, c.contact_name, c.zip, c.city, c.country, c.email, c.legacy_no, c.default_tax_rate, ' +
+    '(SELECT count(*) FROM invoices i WHERE i.customer_id = c.id) AS invoice_count, ' +
+    "(SELECT max(i.issue_date) FROM invoices i WHERE i.customer_id = c.id AND i.status <> 'draft') AS last_invoice_date, " +
+    "(SELECT coalesce(sum(i.total_gross), 0) FROM invoices i WHERE i.customer_id = c.id AND i.status = 'issued') - " +
+    "(SELECT coalesce(sum(p.amount), 0) FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.customer_id = c.id AND i.status = 'issued') AS open_amount " +
+    'FROM customers c WHERE c.account_id = ? AND lower(c.name) LIKE lower(?)';
+  var args = [accountId, '%' + String(q || '').trim() + '%'];
+  if (opts.with_open) sql += " AND EXISTS (SELECT 1 FROM invoices i WHERE i.customer_id = c.id AND i.status = 'issued')";
+  sql += ' ORDER BY c.name LIMIT ?';
+  args.push(limit);
+  var stmt = db.open().prepare(sql);
+  return stmt.all.apply(stmt, args).map(function (r) {
+    r.open_amount = Math.round(r.open_amount * 100) / 100;
+    return r;
+  });
+}
+
 function findById(id) {
   return db.open().prepare('SELECT * FROM customers WHERE id = ?').get(id);
 }
@@ -128,6 +152,7 @@ function merge(keepId, dropId) {
 
 module.exports = {
   list: list,
+  search: search,
   findById: findById,
   create: create,
   update: update,

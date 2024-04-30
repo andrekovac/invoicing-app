@@ -87,7 +87,7 @@ test('imported account', async function () {
   var res = await call('POST', '/api/v1/auth/login', { email: 'anna@druckerei-albers.example', password: 'rechnungen' });
   assert.strictEqual(res.status, 200);
   var list = await call('GET', '/api/v1/customers');
-  assert.strictEqual(list.body.length, 12);
+  assert.strictEqual(list.body.length, 14);
   var inv = await call('GET', '/api/v1/invoices/by-number/RE-2021-0087');
   assert.strictEqual(inv.body.customer.name, 'Krause GmbH');
 });

@@ -10,6 +10,7 @@ import { CustomerService, Customer } from '../services/customer.service';
     <div class="toolbar">
       <input type="search" placeholder="Name, Ort oder Ansprechpartner" [(ngModel)]="q" (keyup.enter)="load()">
       <button class="secondary" (click)="load()">Suchen</button>
+      <a routerLink="/customers/search">Kundensuche</a>
       <span class="spacer"></span>
       <button (click)="router.navigate(['/customers', 'new'])">Neuer Kunde</button>
     </div>

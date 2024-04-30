@@ -140,6 +140,39 @@ function seedAlbers2022() {
     }
   });
   console.log('[seed] Druckerei Albers 2022: ' + ALBERS_2022_CUSTOMERS.length + ' customers, ' + ALBERS_2022_INVOICES.length + ' invoices');
+  seedAlbers2024(ids);
+}
+
+// new customers 2024, typed in with the web app
+var ALBERS_2024_CUSTOMERS = [
+  { name: 'Müller Gartenbau', contact_name: 'Jana Müller', street: 'Am Mühlbach 9', zip: '97337', city: 'Dettelbach', country: 'Deutschland', email: 'jana@mueller-gartenbau.example', default_tax_rate: 19 },
+  { name: 'Weingut Schäfer', contact_name: 'Tobias Schäfer', street: 'Hauptstr. 54', zip: '97332', city: 'Volkach', country: 'Deutschland', email: 'info@weingut-schaefer.example', default_tax_rate: 19 }
+];
+
+var ALBERS_2024_INVOICES = [
+  ['Müller Gartenbau', '2024-03-18', 'paid', 19, [['Flyer DIN lang 4/4 (je 1000 St.)', 3, 58], ['Fahrzeugbeschriftung Entwurf', 1, 240]]],
+  ['Weingut Schäfer', '2024-04-08', 'issued', 19, [['Etiketten Silvaner 2023, 4/0', 6000, 0.07], ['Halsschleifen', 6000, 0.03]]],
+  ['Müller Gartenbau', '2024-04-22', 'issued', 19, [['Bautafel 120x80 Alu-Dibond', 2, 89.5]]]
+];
+
+function seedAlbers2024(ids) {
+  ALBERS_2024_CUSTOMERS.forEach(function (c) {
+    ids[c.name] = customers.create(2, c).id;
+  });
+  ALBERS_2024_INVOICES.forEach(function (row) {
+    var inv = invoices.create(2, {
+      customer_id: ids[row[0]],
+      issue_date: row[1],
+      tax_rate: row[3],
+      items: row[4].map(function (it) {
+        return { description: it[0], quantity: it[1], unit_price: it[2] };
+      })
+    });
+    invoices.update(inv.id, { due_date: addDays(row[1], 14) });
+    inv = invoices.issue(inv.id);
+    if (row[2] === 'paid') payments.recordPayment(inv, { amount: inv.total_gross, paid_at: addDays(row[1], 9), reference: inv.number });
+  });
+  console.log('[seed] Druckerei Albers 2024: ' + ALBERS_2024_CUSTOMERS.length + ' customers, ' + ALBERS_2024_INVOICES.length + ' invoices');
 }
 
 if (require.main === module) {
