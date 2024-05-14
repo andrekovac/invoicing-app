@@ -3,6 +3,7 @@ const express = require('express');
 const db = require('../db');
 const auth = require('../lib/auth');
 const invoiceNumber = require('../lib/invoice-number');
+const flags = require('../lib/flags');
 
 const router = express.Router();
 router.use(auth.requireAdmin);
@@ -48,6 +49,26 @@ router.get('/number-check', function (req, res) {
   var year = req.query.year ? Number(req.query.year) : null;
   var result = invoiceNumber.gaps(rows.map(function (r) { return r.number; }));
   res.json(year ? result.filter(function (y) { return y.year === year; }) : result);
+});
+
+// feature flags of the own account
+router.get('/flags', function (req, res) {
+  res.json(flags.list(req.accountId));
+});
+
+// PUT /flags/NEW_PDF_LAYOUT { enabled: true }   { enabled: null } = back to the default
+router.put('/flags/:name', function (req, res) {
+  var name = String(req.params.name).toUpperCase();
+  if (!flags.isKnown(name)) return res.status(404).json({ error: 'unbekanntes Flag' });
+  var body = req.body || {};
+  if (body.enabled === null) {
+    flags.reset(req.accountId, name);
+  } else if (typeof body.enabled === 'boolean') {
+    flags.set(req.accountId, name, body.enabled, req.user.id);
+  } else {
+    return res.status(400).json({ error: 'enabled muss true, false oder null sein' });
+  }
+  res.json(flags.list(req.accountId).find(function (f) { return f.name === name; }));
 });
 
 router.get('/users', function (req, res) {
