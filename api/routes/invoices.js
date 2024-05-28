@@ -13,6 +13,7 @@ const mailer = require('../lib/mailer');
 const reminders = require('../services/reminders');
 const invoiceNumber = require('../lib/invoice-number');
 const validate = require('../lib/validate');
+const flags = require('../lib/flags');
 
 const router = express.Router();
 
@@ -46,14 +47,15 @@ router.get('/:id/pdf', function (req, res) {
   if (!inv) return res.status(404).json({ error: 'not found' });
   var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(inv.account_id);
   var name = inv.number || 'entwurf-' + inv.id;
+  var layout = flags.isOn(inv.account_id, 'NEW_PDF_LAYOUT') ? 'new' : 'classic';
   // ?format=txt -> same lines as plain text, for pasting into mails
   if (req.query.format === 'txt') {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.send(pdf.invoiceLines(inv, account).join('\r\n') + '\r\n');
+    return res.send(pdf.linesFor(inv, account, layout).join('\r\n') + '\r\n');
   }
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', (req.query.download ? 'attachment' : 'inline') + '; filename="' + name + '.pdf"');
-  res.send(pdf.invoicePdf(inv, account));
+  res.send(pdf.invoicePdf(inv, account, layout));
 });
 
 router.use(auth.requireLogin);

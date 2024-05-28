@@ -107,6 +107,61 @@ function invoiceLines(inv, account) {
   return lines;
 }
 
+// second layout (flag NEW_PDF_LAYOUT): sender line above the address window, info block on
+// the right, gross per position. not finished: footer (bank, tax number) and reverse charge
+// text are still missing, so the flag stays off until that is done
+function invoiceLinesNew(inv, account) {
+  account = account || {};
+  var c = inv.customer || {};
+  var rate = rateFor(inv);
+  var lines = [];
+  var sender = [account.name, account.street, [account.zip, account.city].join(' ').trim()].filter(Boolean).join(' · ');
+
+  lines.push(pad(account.name || '', 50) + pad('RECHNUNG', 28, true));
+  lines.push('');
+  lines.push(sender.length > WIDTH ? sender.slice(0, WIDTH) : sender);
+  lines.push(new Array(sender.length > WIDTH ? WIDTH + 1 : sender.length + 1).join('-'));
+  var info = [
+    'Nummer:  ' + (inv.number || '(Entwurf)'),
+    'Datum:   ' + dateDe(inv.issue_date),
+    inv.due_date ? 'Fällig:  ' + dateDe(inv.due_date) : '',
+    c.vat_id ? 'USt-Id:  ' + c.vat_id : ''
+  ].filter(Boolean);
+  var address = [c.name, c.contact_name, c.street, [c.zip, c.city].filter(Boolean).join(' '), c.country].filter(Boolean);
+  for (var i = 0; i < Math.max(info.length, address.length); i++) {
+    lines.push(pad(address[i] || '', 48) + pad(info[i] || '', 30));
+  }
+  lines.push('');
+  lines.push('');
+  lines.push(pad('Pos', 4) + pad('Beschreibung', 34) + pad('Menge', 7, true) + pad('Netto', 11, true) + pad('USt.', 9, true) + pad('Brutto', 13, true));
+  lines.push(new Array(WIDTH + 1).join('='));
+  (inv.items || []).forEach(function (it, n) {
+    var lineNet = pricing.lineTotal(it.quantity, it.unit_price);
+    var lineGross = money.round2(pricing.gross(lineNet, rate));
+    lines.push(pad(n + 1, 4) + pad(it.description || '', 34) + pad(qty(it.quantity), 7, true) +
+      pad(money.formatEuro(lineNet), 11, true) + pad(rate + ' %', 9, true) + pad(money.formatEuro(lineGross), 13, true));
+    var rest = String(it.description || '').slice(34);
+    while (rest.length) {
+      lines.push(pad('', 4) + rest.slice(0, 34));
+      rest = rest.slice(34);
+    }
+  });
+  var t = totals(inv);
+  lines.push(new Array(WIDTH + 1).join('='));
+  if (t.discount) lines.push(pad('Rabatt ' + String(inv.discount_percent).replace('.', ',') + ' %', 65, true) + pad(money.formatEuro(-t.discount), 13, true));
+  lines.push(pad('Summe netto', 65, true) + pad(money.formatEuro(t.net), 13, true));
+  lines.push(pad('zzgl. USt. ' + rate + ' %', 65, true) + pad(money.formatEuro(t.tax), 13, true));
+  lines.push(pad('Rechnungsbetrag', 65, true) + pad(money.formatEuro(t.gross), 13, true));
+  lines.push('');
+  if (inv.due_date) lines.push('Zahlbar ohne Abzug bis ' + dateDe(inv.due_date) + '.');
+  // TODO footer: bank, tax number, reverse charge (see invoiceLines)
+  return lines;
+}
+
+function linesFor(inv, account, layout) {
+  return layout === 'new' ? invoiceLinesNew(inv, account) : invoiceLines(inv, account);
+}
+
 // pdf strings: latin1 + WinAnsi euro sign, escape \ ( )
 function pdfString(s) {
   return '(' + String(s)
@@ -172,8 +227,16 @@ function render(lines) {
   return Buffer.from(out, 'latin1');
 }
 
-function invoicePdf(inv, account) {
-  return render(invoiceLines(inv, account));
+function invoicePdf(inv, account, layout) {
+  return render(linesFor(inv, account, layout));
 }
 
-module.exports = { invoicePdf: invoicePdf, invoiceLines: invoiceLines, totals: totals, rateFor: rateFor, render: render };
+module.exports = {
+  invoicePdf: invoicePdf,
+  invoiceLines: invoiceLines,
+  invoiceLinesNew: invoiceLinesNew,
+  linesFor: linesFor,
+  totals: totals,
+  rateFor: rateFor,
+  render: render
+};

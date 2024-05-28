@@ -71,3 +71,18 @@ test('wrong flag name or value', async function () {
   assert.strictEqual((await admin.put('/api/v1/admin/flags/NOPE', { enabled: true })).status, 404);
   assert.strictEqual((await admin.put('/api/v1/admin/flags/NEW_PDF_LAYOUT', { enabled: 'yes' })).status, 400);
 });
+
+test('NEW_PDF_LAYOUT changes the text version of the pdf', async function () {
+  const list = await admin.get('/api/v1/invoices?status=issued');
+  const id = list.body[0].id;
+  const before = await admin.get('/api/v1/invoices/' + id + '/pdf?format=txt');
+  assert.ok(before.body.indexOf('Gesamt') !== -1);
+  await admin.put('/api/v1/admin/flags/NEW_PDF_LAYOUT', { enabled: true });
+  try {
+    const after = await admin.get('/api/v1/invoices/' + id + '/pdf?format=txt');
+    assert.ok(after.body.indexOf('Rechnungsbetrag') !== -1);
+    assert.strictEqual(after.body.indexOf('IBAN'), -1);
+  } finally {
+    await admin.put('/api/v1/admin/flags/NEW_PDF_LAYOUT', { enabled: null });
+  }
+});
