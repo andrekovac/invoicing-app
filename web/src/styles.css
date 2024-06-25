@@ -41,3 +41,18 @@ th.click { cursor: pointer; user-select: none; }
 .pager { display: flex; gap: 4px; align-items: center; margin-top: 12px; }
 .pager button { min-width: 32px; padding: 4px 8px; }
 .pager .muted { margin-left: 10px; }
+.tabs { display: flex; gap: 4px; }
+.chart { display: flex; gap: 8px; align-items: flex-end; height: 220px; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; font-size: 12px; }
+.bars { flex: 1; width: 100%; display: flex; gap: 2px; align-items: flex-end; justify-content: center; }
+.bar { width: 30%; min-height: 1px; border-radius: 2px 2px 0 0; }
+.bar.billed, .dot.billed { background: #1f5fa8; }
+.bar.paid, .dot.paid { background: #3c9a52; }
+.bar.planned, .dot.planned { background: #c8ccd2; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 12px; }
+.buckets { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.bucket { flex: 1; min-width: 140px; cursor: pointer; margin-bottom: 0; }
+.bucket.active { border-color: #1f5fa8; }
+.bucket.bad b { color: #b3261e; }
+.share { display: inline-block; width: 80px; height: 8px; background: #e8eaed; vertical-align: middle; }
+.share span { display: block; height: 100%; background: #1f5fa8; }
