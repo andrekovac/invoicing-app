@@ -203,6 +203,7 @@ export class InvoiceViewComponent implements OnInit {
     let text = EVENT_TEXT[e.type] || e.type;
     if (e.type === 'issued' && e.data && e.data.number) text += ' (' + e.data.number + ')';
     if (e.type === 'created' && e.data && e.data.copied_from) text += ' als Kopie von ' + e.data.copied_from;
+    if (e.type === 'created' && e.data && e.data.recurring_from) text += ' (Serienrechnung)';
     return text;
   }
 

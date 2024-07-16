@@ -14,6 +14,7 @@ const reminders = require('../services/reminders');
 const invoiceNumber = require('../lib/invoice-number');
 const validate = require('../lib/validate');
 const flags = require('../lib/flags');
+const recurring = require('../services/recurring');
 
 const router = express.Router();
 
@@ -225,6 +226,109 @@ router.get('/overdue', function (req, res) {
   }));
 });
 
+// ---- recurring invoices (Serienrechnungen) ----
+// GET    /recurring              list
+// POST   /recurring              { template_invoice_id, start_date, interval_months?, day_of_month?, end_date?, ... }
+// GET    /recurring/:rid         one, with the copies made so far and a preview of the next one
+// PUT    /recurring/:rid         change interval, day, end, auto_issue, send_mail, title
+// POST   /recurring/:rid/pause | /resume | /run
+// DELETE /recurring/:rid         the copies stay, they only lose the link
+function ownRecurring(req, res) {
+  var rec = recurring.findById(Number(req.params.rid));
+  if (!rec || rec.account_id !== req.accountId) {
+    res.status(404).json({ error: 'not found' });
+    return null;
+  }
+  return rec;
+}
+
+function checkRecurring(body, isNew) {
+  var errors = [];
+  if (isNew && !body.template_invoice_id) errors.push({ field: 'template_invoice_id', message: 'Vorlage fehlt' });
+  if (isNew && !utils.isDate(body.start_date)) errors.push({ field: 'start_date', message: 'Startdatum fehlt oder ungültig' });
+  if (body.end_date && !utils.isDate(body.end_date)) errors.push({ field: 'end_date', message: 'Enddatum ungültig' });
+  if (body.end_date && body.start_date && body.end_date < body.start_date) errors.push({ field: 'end_date', message: 'Enddatum vor dem Start' });
+  if (body.interval_months !== undefined && [1, 2, 3, 6, 12].indexOf(Number(body.interval_months)) === -1) {
+    errors.push({ field: 'interval_months', message: 'Intervall: 1, 2, 3, 6 oder 12 Monate' });
+  }
+  if (body.day_of_month !== undefined) {
+    var d = Number(body.day_of_month);
+    if (!(d >= 1 && d <= 31) || Math.floor(d) !== d) errors.push({ field: 'day_of_month', message: 'Tag 1 bis 31' });
+  }
+  if (body.payment_days !== undefined) {
+    var p = Number(body.payment_days);
+    if (!(p >= 0 && p <= 90)) errors.push({ field: 'payment_days', message: 'Zahlungsziel 0 bis 90 Tage' });
+  }
+  return errors;
+}
+
+router.get('/recurring', function (req, res) {
+  res.json(recurring.list(req.accountId));
+});
+
+router.post('/recurring', function (req, res, next) {
+  var body = req.body || {};
+  var errors = checkRecurring(body, true);
+  if (errors.length) return res.status(400).json({ errors: errors });
+  var template = invoices.findById(Number(body.template_invoice_id));
+  if (!template || template.account_id !== req.accountId) return res.status(400).json({ errors: [{ field: 'template_invoice_id', message: 'Vorlage nicht gefunden' }] });
+  if (template.status === 'cancelled') return res.status(400).json({ errors: [{ field: 'template_invoice_id', message: 'stornierte Rechnung als Vorlage' }] });
+  try {
+    res.status(201).json(recurring.create(req.accountId, body, req.user.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/recurring/:rid', function (req, res) {
+  var rec = ownRecurring(req, res);
+  if (!rec) return;
+  rec.copies = recurring.copiesOf(rec.id);
+  rec.next = recurring.preview(rec);
+  res.json(rec);
+});
+
+router.put('/recurring/:rid', function (req, res) {
+  var rec = ownRecurring(req, res);
+  if (!rec) return;
+  var body = req.body || {};
+  var errors = checkRecurring(Object.assign({ start_date: rec.start_date }, body), false);
+  if (errors.length) return res.status(400).json({ errors: errors });
+  res.json(recurring.update(rec.id, body));
+});
+
+router.post('/recurring/:rid/pause', function (req, res) {
+  var rec = ownRecurring(req, res);
+  if (!rec) return;
+  res.json(recurring.setActive(rec.id, false));
+});
+
+router.post('/recurring/:rid/resume', function (req, res) {
+  var rec = ownRecurring(req, res);
+  if (!rec) return;
+  if (!rec.next_date) return res.status(409).json({ error: 'Serie ist abgelaufen' });
+  res.json(recurring.setActive(rec.id, true));
+});
+
+// make the next copy now (e.g. the customer wants the invoice early)
+router.post('/recurring/:rid/run', function (req, res, next) {
+  var rec = ownRecurring(req, res);
+  if (!rec) return;
+  if (!rec.next_date) return res.status(409).json({ error: 'Serie ist abgelaufen' });
+  try {
+    res.status(201).json(recurring.runNow(rec.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/recurring/:rid', function (req, res) {
+  var rec = ownRecurring(req, res);
+  if (!rec) return;
+  recurring.remove(rec.id);
+  res.status(204).end();
+});
+
 // lookup by number, e.g. from the bank statement
 router.get('/by-number/:number', function (req, res) {
   var number = invoiceNumber.normalize(req.params.number);
@@ -314,6 +418,27 @@ router.post('/:id/copy', function (req, res) {
   var inv = ownInvoice(req, res);
   if (!inv) return;
   res.status(201).json(invoices.duplicate(inv.id));
+});
+
+// this invoice as template for a recurring invoice, starting next month
+router.post('/:id/recurring', function (req, res, next) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  if (inv.status === 'cancelled') return res.status(409).json({ error: 'stornierte Rechnung als Vorlage' });
+  var body = req.body || {};
+  var day = body.day_of_month || Number(String(inv.issue_date || utils.today()).slice(8, 10)) || 1;
+  var data = Object.assign({
+    template_invoice_id: inv.id,
+    start_date: recurring.addMonths(utils.today(), 1, 1),
+    day_of_month: day
+  }, body, { template_invoice_id: inv.id });
+  var errors = checkRecurring(data, true);
+  if (errors.length) return res.status(400).json({ errors: errors });
+  try {
+    res.status(201).json(recurring.create(req.accountId, data, req.user.id));
+  } catch (err) {
+    next(err);
+  }
 });
 
 // text for the mail to the customer (the pdf is attached by hand)

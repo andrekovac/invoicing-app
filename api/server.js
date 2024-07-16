@@ -70,6 +70,7 @@ if (require.main === module) {
   // fresh checkout: no db file yet, fill it with demo data
   if (db.wasCreated()) require('./seed/seed').seed();
   if (process.env.OVERDUE_JOB !== 'off') require('./jobs/overdue').start();
+  if (process.env.RECURRING_JOB !== 'off') require('./jobs/recurring').start();
   app.listen(PORT, function () {
     require('./lib/logger')('api').info('listening on http://localhost:' + PORT);
   });
