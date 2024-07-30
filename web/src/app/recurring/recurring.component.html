@@ -1,0 +1,106 @@
+<h1>Serienrechnungen</h1>
+<p class="muted">Eine Rechnung als Vorlage wird jeden Monat (oder alle 2, 3, 6, 12 Monate) kopiert und gestellt.
+  In den Positionen werden {{ '{monat}' }}, {{ '{jahr}' }} und {{ '{zeitraum}' }} ersetzt.</p>
+
+<p class="error" *ngIf="error">{{ error }}</p>
+<p class="ok" *ngIf="info">{{ info }}</p>
+
+<table>
+  <thead>
+    <tr><th>Bezeichnung</th><th>Kunde</th><th>Vorlage</th><th>Intervall</th><th>Nächste</th><th>Ende</th><th class="num">Kopien</th><th></th></tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let r of rows" [class.muted]="!r.active" class="click" (click)="select(r)">
+      <td>{{ r.title || '-' }}</td>
+      <td>{{ r.customer_name }}</td>
+      <td>{{ r.template_number || '(Entwurf)' }}</td>
+      <td>{{ intervalText(r.interval_months) }}, am {{ r.day_of_month }}.</td>
+      <td>{{ r.next_date ? (r.next_date | dateDe) : 'abgelaufen' }}</td>
+      <td>{{ r.end_date | dateDe }}</td>
+      <td class="num">{{ r.copies }}</td>
+      <td><span class="status" [class.status-paid]="r.active">{{ r.active ? 'aktiv' : 'pausiert' }}</span></td>
+    </tr>
+    <tr *ngIf="!rows.length"><td colspan="8" class="muted">Noch keine Serienrechnungen</td></tr>
+  </tbody>
+</table>
+
+<div class="card" *ngIf="selected" style="margin-top: 16px;">
+  <div class="toolbar">
+    <h2 style="margin: 0;">{{ selected.title || 'Serie ' + selected.id }}</h2>
+    <span class="spacer"></span>
+    <button class="secondary" *ngIf="selected.active" (click)="pause()">Pausieren</button>
+    <button class="secondary" *ngIf="!selected.active && selected.next_date" (click)="resume()">Fortsetzen</button>
+    <button class="secondary" *ngIf="selected.next_date" (click)="runNow()">Nächste jetzt erstellen</button>
+    <button class="danger" (click)="remove()">Löschen</button>
+  </div>
+
+  <div class="form-row">
+    <label>Bezeichnung <input name="title" [(ngModel)]="edit.title" size="30"></label>
+    <label>Intervall
+      <select name="interval" [(ngModel)]="edit.interval_months">
+        <option *ngFor="let i of intervals" [ngValue]="i">{{ intervalText(i) }}</option>
+      </select>
+    </label>
+    <label>Tag im Monat <input name="day" type="number" min="1" max="31" [(ngModel)]="edit.day_of_month" style="width: 70px;"></label>
+    <label>Zahlungsziel (Tage) <input name="payment_days" type="number" min="0" max="90" [(ngModel)]="edit.payment_days" style="width: 70px;"></label>
+    <label>Ende <input name="end_date" type="date" [(ngModel)]="edit.end_date"></label>
+  </div>
+  <div class="form-row">
+    <label class="inline"><input type="checkbox" name="auto_issue" [(ngModel)]="edit.auto_issue"> direkt stellen (sonst als Entwurf)</label>
+    <label class="inline"><input type="checkbox" name="send_mail" [(ngModel)]="edit.send_mail" [disabled]="!edit.auto_issue"> per Mail an den Kunden</label>
+    <span class="spacer"></span>
+    <button (click)="save()">Speichern</button>
+  </div>
+
+  <div *ngIf="selected.next">
+    <h3>Nächste Rechnung am {{ selected.next.date | dateDe }}</h3>
+    <table>
+      <tbody>
+        <tr *ngFor="let it of selected.next.items">
+          <td>{{ it.description }}</td>
+          <td class="num">{{ it.quantity }}</td>
+          <td class="num">{{ it.unit_price | euro }}</td>
+        </tr>
+        <tr><td colspan="2" class="num">Netto</td><td class="num">{{ selected.next.total_net | euro }}</td></tr>
+        <tr><td colspan="2" class="num">Brutto ({{ selected.next.tax_rate }} %)</td><td class="num"><b>{{ selected.next.total_gross | euro }}</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Bisher erstellt</h3>
+  <table>
+    <tbody>
+      <tr *ngFor="let inv of selected.copies">
+        <td><a [routerLink]="['/invoices', inv.id]">{{ inv.number || '(Entwurf)' }}</a></td>
+        <td>{{ inv.issue_date | dateDe }}</td>
+        <td><span class="status status-{{ inv.status }}">{{ inv.status | status }}</span></td>
+        <td class="num">{{ inv.total_gross | euro }}</td>
+      </tr>
+      <tr *ngIf="!selected.copies?.length"><td class="muted">noch keine</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" style="margin-top: 16px;">
+  <h2>Neue Serie</h2>
+  <form (ngSubmit)="create()">
+    <div class="form-row">
+      <label>Vorlage (Rechnung)
+        <select name="template" [(ngModel)]="form.template_invoice_id" required>
+          <option [ngValue]="null">bitte wählen</option>
+          <option *ngFor="let inv of templates" [ngValue]="inv.id">{{ inv.number || '(Entwurf)' }} {{ inv.customer_name }} ({{ inv.total_gross | euro }})</option>
+        </select>
+      </label>
+      <label>Bezeichnung <input name="new_title" [(ngModel)]="form.title" size="24"></label>
+      <label>Start <input name="start" type="date" [(ngModel)]="form.start_date" required></label>
+      <label>Intervall
+        <select name="new_interval" [(ngModel)]="form.interval_months">
+          <option *ngFor="let i of intervals" [ngValue]="i">{{ intervalText(i) }}</option>
+        </select>
+      </label>
+      <label>Tag <input name="new_day" type="number" min="1" max="31" [(ngModel)]="form.day_of_month" style="width: 70px;"></label>
+      <label>Ende <input name="new_end" type="date" [(ngModel)]="form.end_date"></label>
+    </div>
+    <button type="submit" [disabled]="!form.template_invoice_id || !form.start_date">Serie anlegen</button>
+  </form>
+</div>

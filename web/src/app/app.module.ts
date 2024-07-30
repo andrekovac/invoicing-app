@@ -13,6 +13,7 @@ import { PaymentListComponent } from './payments/payment-list.component';
 import { OverdueComponent } from './overdue/overdue.component';
 import { SettingsComponent } from './settings/settings.component';
 import { PortalComponent } from './portal/portal.component';
+import { RecurringComponent } from './recurring/recurring.component';
 import { CardFormComponent } from './portal/card-form.component';
 import { PagerComponent } from './shared/pager.component';
 import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
@@ -29,7 +30,8 @@ import { EuroPipe, DateDePipe, StatusPipe } from './shared/format.pipes';
     PaymentListComponent,
     OverdueComponent,
     SettingsComponent,
-    PortalComponent
+    PortalComponent,
+    RecurringComponent
   ],
   imports: [
     BrowserModule,

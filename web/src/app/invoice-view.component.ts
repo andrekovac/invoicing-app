@@ -149,6 +149,7 @@ const EVENT_TEXT: { [k: string]: string } = {
       <div class="toolbar" style="margin-top: 16px;">
         <button class="secondary" (click)="back()">Zurück zur Liste</button>
         <button class="secondary" *ngIf="inv.status === 'issued'" (click)="copyPayLink()">Zahlungslink kopieren</button>
+        <button class="secondary" *ngIf="inv.status !== 'cancelled'" (click)="makeRecurring()">Als Serienrechnung</button>
         <span class="ok" *ngIf="info()">{{ info() }}</span>
       </div>
     </ng-container>
@@ -212,6 +213,15 @@ export class InvoiceViewComponent implements OnInit {
     if (!inv) return;
     sendJson<any>('POST', '/api/v1/payments/link', { invoice_id: inv.id, days: 30 })
       .then(link => navigator.clipboard.writeText(link.url).then(() => this.info.set('Zahlungslink kopiert'), () => this.info.set(link.url)))
+      .catch(err => this.error.set(err.message));
+  }
+
+  // monthly from next month on, the rest can be changed on the recurring page
+  makeRecurring(): void {
+    const inv = this.invoice();
+    if (!inv || !confirm('Diese Rechnung jeden Monat neu stellen?')) return;
+    sendJson<any>('POST', '/api/v1/invoices/' + inv.id + '/recurring', {})
+      .then(rec => this.router.navigate(['/invoices', 'recurring'], { queryParams: { id: rec.id } }))
       .catch(err => this.error.set(err.message));
   }
 

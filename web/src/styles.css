@@ -56,3 +56,4 @@ th.click { cursor: pointer; user-select: none; }
 .bucket.bad b { color: #b3261e; }
 .share { display: inline-block; width: 80px; height: 8px; background: #e8eaed; vertical-align: middle; }
 .share span { display: block; height: 100%; background: #1f5fa8; }
+.form-row label.inline { flex-direction: row; align-items: center; font-size: 14px; color: #222; }
