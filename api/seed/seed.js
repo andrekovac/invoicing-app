@@ -75,6 +75,7 @@ function seed() {
 
   seedAlbers(conn);
   require('./fixes-2023').apply();
+  require('./recurring').apply();
 }
 
 // account 2: first customer from the old desktop program, data comes from its csv export
