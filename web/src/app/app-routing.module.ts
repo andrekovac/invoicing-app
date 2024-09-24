@@ -16,6 +16,7 @@ import { InvoiceViewComponent } from './invoice-view.component';
 import { CustomerSearchComponent } from './customer-search/customer-search.component';
 import { ReportsComponent } from './reports/reports.component';
 import { RecurringComponent } from './recurring/recurring.component';
+import { ExportComponent } from './export/export.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -30,6 +31,7 @@ const routes: Routes = [
   { path: 'payments', component: PaymentListComponent, canActivate: [AuthGuard] },
   { path: 'overdue', component: OverdueComponent, canActivate: [AuthGuard] },
   { path: 'reports', component: ReportsComponent, canActivate: [AuthGuard] },
+  { path: 'export', component: ExportComponent, canActivate: [AuthGuard] },
   { path: 'settings', component: SettingsComponent, canActivate: [AuthGuard] },
   // customers, no login
   { path: 'portal/:token', component: PortalComponent },

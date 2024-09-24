@@ -14,6 +14,7 @@ import { post } from '../api/client.js';
       <a routerLink="/payments" routerLinkActive="active">Zahlungen</a>
       <a routerLink="/overdue" routerLinkActive="active">Überfällig</a>
       <a routerLink="/reports" routerLinkActive="active">Berichte</a>
+      <a routerLink="/export" routerLinkActive="active">Export</a>
       <a routerLink="/settings" routerLinkActive="active" *ngIf="user()?.role === 'admin'">Einstellungen</a>
       <span class="spacer"></span>
       <span class="muted">{{ user()?.account_name }}</span>
