@@ -9,6 +9,7 @@ const importer = require('../scripts/import-legacy');
 const payments = require('../services/payments');
 const pricing = require('../lib/pricing');
 const money = require('../lib/money');
+const products = require('../services/products');
 
 var CUSTOMERS = [
   { name: 'Bäckerei Lindner', street: 'Severinstr. 41', zip: '50678', city: 'Köln', email: 'info@baeckerei-lindner.example' },
@@ -156,7 +157,22 @@ var ALBERS_2024_INVOICES = [
   ['Müller Gartenbau', '2024-04-22', 'issued', 19, [['Bautafel 120x80 Alu-Dibond', 2, 89.5]]]
 ];
 
+// price list of the desktop program, typed into the new products page in 2024
+var ALBERS_PRODUCTS = [
+  ['VK-100', 'Visitenkarten 4/4, 350g (je 100 St.)', 'Pack', 3.85, 19],
+  ['FL-A5', 'Flyer A5 4/4 (je 1000 St.)', 'Pack', 69.9, 19],
+  ['FL-DL', 'Flyer DIN lang 4/4 (je 1000 St.)', 'Pack', 58, 19],
+  ['BB-1000', 'Briefbogen 2-farbig (je 1000 St.)', 'Pack', 71.2, 19],
+  ['RU-85', 'Rollup 85x200 inkl. Kassette', 'Stück', 92, 19],
+  ['SATZ-H', 'Satz und Layout (Std.)', 'Std.', 55, 19],
+  ['VERS-ST', 'Versand an Abonnenten (Stück)', 'Stück', 0.62, 19],
+  ['DATEN', 'Datencheck', 'pauschal', 24.5, 19]
+];
+
 function seedAlbers2024(ids) {
+  ALBERS_PRODUCTS.forEach(function (p) {
+    products.create(2, { sku: p[0], name: p[1], unit: p[2], unit_price: p[3], tax_rate: p[4] });
+  });
   ALBERS_2024_CUSTOMERS.forEach(function (c) {
     ids[c.name] = customers.create(2, c).id;
   });
