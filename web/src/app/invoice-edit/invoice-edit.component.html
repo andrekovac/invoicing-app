@@ -23,7 +23,7 @@
     </thead>
     <tbody>
       <tr *ngFor="let it of form.items; let i = index">
-        <td><input [name]="'desc' + i" [(ngModel)]="it.description" size="46"></td>
+        <td><input [name]="'desc' + i" [(ngModel)]="it.description" size="46" list="products" (change)="pickProduct(it)"></td>
         <td class="num"><input [name]="'qty' + i" [(ngModel)]="it.quantity" size="6" [disabled]="!isDraft()"></td>
         <td class="num"><input [name]="'price' + i" [(ngModel)]="it.unit_price" size="10" [disabled]="!isDraft()"></td>
         <td class="num">{{ line(it) | euro }}</td>
@@ -31,6 +31,9 @@
       </tr>
     </tbody>
   </table>
+  <datalist id="products">
+    <option *ngFor="let p of products" [value]="p.sku + ' ' + p.name">{{ p.unit_price | euro }}</option>
+  </datalist>
   <div class="toolbar" style="margin-top: 8px;">
     <button type="button" class="secondary" *ngIf="isDraft()" (click)="addItem()">+ Position</button>
     <span class="spacer"></span>

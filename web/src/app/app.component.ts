@@ -11,6 +11,7 @@ import { post } from '../api/client.js';
       <strong>Rechnungen</strong>
       <a routerLink="/invoices" routerLinkActive="active">Rechnungen</a>
       <a routerLink="/customers" routerLinkActive="active">Kunden</a>
+      <a routerLink="/products" routerLinkActive="active">Artikel</a>
       <a routerLink="/payments" routerLinkActive="active">Zahlungen</a>
       <a routerLink="/overdue" routerLinkActive="active">Überfällig</a>
       <a routerLink="/reports" routerLinkActive="active">Berichte</a>

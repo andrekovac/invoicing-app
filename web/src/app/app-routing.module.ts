@@ -17,6 +17,7 @@ import { CustomerSearchComponent } from './customer-search/customer-search.compo
 import { ReportsComponent } from './reports/reports.component';
 import { RecurringComponent } from './recurring/recurring.component';
 import { ExportComponent } from './export/export.component';
+import { ProductsComponent } from './products/products.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -28,6 +29,7 @@ const routes: Routes = [
   { path: 'customers', component: CustomerListComponent, canActivate: [AuthGuard] },
   { path: 'customers/search', component: CustomerSearchComponent, canActivate: [AuthGuard] },
   { path: 'customers/:id', component: CustomerEditComponent, canActivate: [AuthGuard] },
+  { path: 'products', component: ProductsComponent, canActivate: [AuthGuard] },
   { path: 'payments', component: PaymentListComponent, canActivate: [AuthGuard] },
   { path: 'overdue', component: OverdueComponent, canActivate: [AuthGuard] },
   { path: 'reports', component: ReportsComponent, canActivate: [AuthGuard] },

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { InvoiceService, Invoice } from '../services/invoice.service';
 import { CustomerService, Customer } from '../services/customer.service';
 import * as pricing from '../shared/pricing';
@@ -19,6 +20,7 @@ interface FormItem {
 export class InvoiceEditComponent implements OnInit {
   invoice: Invoice | null = null;
   customers: Customer[] = [];
+  products: any[] = [];
   rates = pricing.RATES;
   form: any = { customer_id: null, tax_rate: 19, discount_percent: '0', issue_date: '', due_date: '', note: '', items: [] };
   error = '';
@@ -29,7 +31,8 @@ export class InvoiceEditComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private invoiceService: InvoiceService,
-    private customerService: CustomerService
+    private customerService: CustomerService,
+    private http: HttpClient
   ) { }
 
   ngOnInit(): void {
@@ -40,6 +43,7 @@ export class InvoiceEditComponent implements OnInit {
         this.customerChanged();
       }
     });
+    this.http.get<any[]>('/api/v1/products').subscribe(rows => this.products = rows, () => this.products = []);
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.invoiceService.get(Number(id)).subscribe(inv => this.fill(inv));
@@ -83,6 +87,15 @@ export class InvoiceEditComponent implements OnInit {
 
   addItem(): void {
     this.form.items.push({ description: '', quantity: '1', unit_price: '' });
+  }
+
+  // text typed or picked from the list: "VK-100" or the full name -> text and price of the product
+  pickProduct(it: FormItem): void {
+    const v = String(it.description || '').trim();
+    const p = this.products.find(x => x.sku === v || x.name === v || (x.sku + ' ' + x.name) === v);
+    if (!p) return;
+    it.description = p.name;
+    if (!it.unit_price) it.unit_price = String(p.unit_price).replace('.', ',');
   }
 
   removeItem(i: number): void {
