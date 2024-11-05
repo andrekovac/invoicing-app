@@ -43,6 +43,11 @@ router.get('/tax', function (req, res) {
   res.json(reports.taxPerRate(req.accountId, y, q));
 });
 
+// recurring invoices of the next months (dashboard)
+router.get('/recurring', function (req, res) {
+  res.json(reports.recurringForecast(req.accountId, req.query.months));
+});
+
 // years that have invoices, for the year picker
 router.get('/years', function (req, res) {
   res.json(require('../services/invoices').years(req.accountId));

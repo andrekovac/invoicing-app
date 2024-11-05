@@ -9,6 +9,7 @@ import { post } from '../api/client.js';
   template: `
     <header class="top" *ngIf="user()">
       <strong>Rechnungen</strong>
+      <a routerLink="/start" routerLinkActive="active">Start</a>
       <a routerLink="/invoices" routerLinkActive="active">Rechnungen</a>
       <a routerLink="/customers" routerLinkActive="active">Kunden</a>
       <a routerLink="/products" routerLinkActive="active">Artikel</a>

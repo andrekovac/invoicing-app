@@ -58,3 +58,4 @@ th.click { cursor: pointer; user-select: none; }
 .share span { display: block; height: 100%; background: #1f5fa8; }
 .form-row label.inline { flex-direction: row; align-items: center; font-size: 14px; color: #222; }
 button.secondary.active { background: #e8f0fa; }
+a.card.bucket { color: inherit; text-decoration: none; display: block; }

@@ -86,6 +86,7 @@ test('preview of the next copy', async function () {
   const detail = await albers.get('/api/v1/invoices/recurring/' + res.body.id);
   assert.strictEqual(detail.body.next.date, '2024-07-15');
   assert.strictEqual(detail.body.next.items[0].description, 'Newsletter Juli 2024, Druck und Versand');
+  assert.strictEqual(detail.body.next.total_gross, money.round2(pricing.gross(552.5, 19)));
 });
 
 test('pause, run now, resume', async function () {
@@ -117,4 +118,12 @@ test('wrong input', async function () {
 test('template of another account', async function () {
   const res = await brandt.post('/api/v1/invoices/recurring', { template_invoice_id: templateId, start_date: '2024-02-01' });
   assert.strictEqual(res.status, 400);
+});
+
+test('coming recurring invoices for the dashboard', async function () {
+  const res = await albers.get('/api/v1/reports/recurring?months=12');
+  assert.strictEqual(res.status, 200);
+  res.body.invoices.forEach(function (r) { assert.ok(r.date <= res.body.until); });
+  const sum = res.body.invoices.reduce(function (s, r) { return s + r.total_gross; }, 0);
+  assert.strictEqual(money.round2(sum), res.body.total_gross);
 });

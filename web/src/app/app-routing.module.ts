@@ -18,9 +18,11 @@ import { ReportsComponent } from './reports/reports.component';
 import { RecurringComponent } from './recurring/recurring.component';
 import { ExportComponent } from './export/export.component';
 import { ProductsComponent } from './products/products.component';
+import { DashboardComponent } from './dashboard/dashboard.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'start', component: DashboardComponent, canActivate: [AuthGuard] },
   { path: 'invoices', component: InvoiceListComponent, canActivate: [AuthGuard] },
   { path: 'invoices/new', component: InvoiceEditComponent, canActivate: [AuthGuard] },
   { path: 'invoices/recurring', component: RecurringComponent, canActivate: [AuthGuard] },
@@ -38,7 +40,7 @@ const routes: Routes = [
   // customers, no login
   { path: 'portal/:token', component: PortalComponent },
   { path: 'pay/:token', component: PayLinkComponent },
-  { path: '', pathMatch: 'full', redirectTo: 'invoices' },
+  { path: '', pathMatch: 'full', redirectTo: 'start' },
   { path: '**', redirectTo: 'invoices' }
 ];
 

@@ -35,7 +35,7 @@ export class LoginComponent {
       .then(() => get('/auth/me'))
       .then((me: any) => {
         setUser(me);
-        this.router.navigate(['/invoices']);
+        this.router.navigate(['/start']);
       })
       .catch((err: any) => { this.error = err.message; })
       .then(() => { this.busy = false; });

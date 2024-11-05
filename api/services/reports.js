@@ -179,7 +179,42 @@ function taxPerRate(accountId, year, quarter) {
   };
 }
 
+// recurring invoices coming in the next `months` months (dashboard)
+function recurringForecast(accountId, months) {
+  var recurring = require('./recurring');
+  months = Math.min(Math.max(Number(months) || 3, 1), 12);
+  var until = recurring.addMonths(utils.today(), months, 31);
+  var out = [];
+  conn().prepare('SELECT * FROM recurring_invoices WHERE account_id = ? AND active = 1 AND next_date IS NOT NULL AND next_date <= ? ORDER BY next_date')
+    .all(accountId, until)
+    .forEach(function (rec) {
+      var next = recurring.preview(rec);
+      if (!next) return;
+      var customer = conn().prepare('SELECT name FROM customers WHERE id = ?').get(rec.customer_id) || {};
+      var date = rec.next_date;
+      while (date && date <= until && (!rec.end_date || date <= rec.end_date)) {
+        out.push({
+          recurring_id: rec.id,
+          title: rec.title,
+          customer_name: customer.name,
+          date: date,
+          total_net: next.total_net,
+          total_gross: money.round2(pricing.gross(next.total_net, next.tax_rate))
+        });
+        date = recurring.addMonths(date, rec.interval_months, rec.day_of_month);
+      }
+    });
+  out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  return {
+    until: until,
+    count: out.length,
+    total_gross: money.round2(out.reduce(function (s, r) { return s + r.total_gross; }, 0)),
+    invoices: out
+  };
+}
+
 module.exports = {
+  recurringForecast: recurringForecast,
   MONTHS: MONTHS,
   BUCKETS: BUCKETS,
   revenuePerMonth: revenuePerMonth,
