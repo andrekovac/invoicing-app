@@ -7,6 +7,7 @@ const mailer = require('../lib/mailer');
 const links = require('../services/payment-links');
 const db = require('../db');
 const validate = require('../lib/validate');
+const pdf = require('../lib/pdf');
 
 const router = express.Router();
 router.use(auth.requireLogin);
@@ -59,6 +60,26 @@ router.get('/:id/invoices', function (req, res) {
   var c = own(req, res);
   if (!c) return;
   res.json(invoices.list(req.accountId, { customer_id: c.id }));
+});
+
+// statement of account: GET /:id/statement?from=&to=  json, &format=pdf or &format=txt
+router.get('/:id/statement', function (req, res) {
+  var c = own(req, res);
+  if (!c) return;
+  var from = req.query.from;
+  var to = req.query.to;
+  if ((from && !validate.isDate(from)) || (to && !validate.isDate(to))) return res.status(400).json({ error: 'Datum ungültig' });
+  var st = customers.statement(c.id, from, to);
+  if (req.query.format !== 'pdf' && req.query.format !== 'txt') return res.json(st);
+  var account = db.open().prepare('SELECT * FROM accounts WHERE id = ?').get(req.accountId);
+  var lines = pdf.statementLines(st, account);
+  if (req.query.format === 'txt') {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.send(lines.join('\r\n') + '\r\n');
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="kontoauszug-' + c.id + '.pdf"');
+  res.send(pdf.render(lines));
 });
 
 // mail with the portal link: the customer sees and pays all open invoices

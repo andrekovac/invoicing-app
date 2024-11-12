@@ -13,6 +13,8 @@ export class CustomerEditComponent implements OnInit {
   error = '';
   info = '';
   saved = false;
+  statementFrom = new Date().getFullYear() + '-01-01';
+  statementTo = '';
 
   constructor(private route: ActivatedRoute, private router: Router, private customerService: CustomerService) { }
 
@@ -54,6 +56,13 @@ export class CustomerEditComponent implements OnInit {
       () => this.back(),
       err => this.error = (err.error && err.error.error) || 'Fehler beim Löschen'
     );
+  }
+
+  statementUrl(): string {
+    let url = '/api/v1/customers/' + this.customer.id + '/statement?format=pdf';
+    if (this.statementFrom) url += '&from=' + this.statementFrom;
+    if (this.statementTo) url += '&to=' + this.statementTo;
+    return url;
   }
 
   back(): void {

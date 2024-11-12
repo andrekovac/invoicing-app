@@ -158,6 +158,41 @@ function invoiceLinesNew(inv, account) {
   return lines;
 }
 
+// statement of account for a customer (services/customers.statement), same courier lines
+function statementLines(st, account) {
+  account = account || {};
+  var c = st.customer || {};
+  var lines = [];
+  lines.push(account.name || '');
+  lines.push([account.street, [account.zip, account.city].join(' ').trim()].filter(Boolean).join(', '));
+  lines.push('');
+  lines.push('');
+  lines.push(c.name || '');
+  if (c.contact_name) lines.push(c.contact_name);
+  if (c.street) lines.push(c.street);
+  lines.push([c.zip, c.city].filter(Boolean).join(' '));
+  lines.push('');
+  lines.push('');
+  lines.push(pad('KONTOAUSZUG', 40) + pad(dateDe(st.from) + ' bis ' + dateDe(st.to), 38, true));
+  lines.push('');
+  lines.push(pad('Datum', 11) + pad('Buchung', 37) + pad('Soll', 10, true) + pad('Haben', 10, true) + pad('Saldo', 10, true));
+  lines.push(new Array(WIDTH + 1).join('-'));
+  lines.push(pad('', 11) + pad('Saldovortrag', 37) + pad('', 20) + pad(money.formatEuro(st.opening_balance).replace(' €', ''), 10, true));
+  st.lines.forEach(function (l) {
+    lines.push(pad(dateDe(l.date), 11) + pad(l.text, 37) +
+      pad(l.debit ? money.formatEuro(l.debit).replace(' €', '') : '', 10, true) +
+      pad(l.credit ? money.formatEuro(l.credit).replace(' €', '') : '', 10, true) +
+      pad(money.formatEuro(l.balance).replace(' €', ''), 10, true));
+  });
+  lines.push(new Array(WIDTH + 1).join('-'));
+  lines.push(pad('Summe', 48) + pad(money.formatEuro(st.debit).replace(' €', ''), 10, true) + pad(money.formatEuro(st.credit).replace(' €', ''), 10, true));
+  lines.push(pad(st.closing_balance > 0 ? 'Offener Betrag' : 'Saldo', 68, true) + pad(money.formatEuro(st.closing_balance), 10, true));
+  lines.push('');
+  lines.push('Alle Beträge in Euro.');
+  if (st.closing_balance > 0 && account.iban) lines.push('Bitte überweisen Sie den offenen Betrag auf IBAN ' + account.iban + '.');
+  return lines;
+}
+
 function linesFor(inv, account, layout) {
   return layout === 'new' ? invoiceLinesNew(inv, account) : invoiceLines(inv, account);
 }
@@ -235,6 +270,7 @@ module.exports = {
   invoicePdf: invoicePdf,
   invoiceLines: invoiceLines,
   invoiceLinesNew: invoiceLinesNew,
+  statementLines: statementLines,
   linesFor: linesFor,
   totals: totals,
   rateFor: rateFor,

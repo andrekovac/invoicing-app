@@ -150,7 +150,54 @@ function merge(keepId, dropId) {
   }
 }
 
+// statement of account ("Kontoauszug") for one customer: invoices (debit) and payments
+// (credit) in date order with the running balance. opening balance = everything before `from`
+function statement(customerId, from, to) {
+  var c = db.open();
+  var customer = findById(customerId);
+  if (!customer) return null;
+  from = from || '2000-01-01';
+  to = to || new Date().toISOString().slice(0, 10);
+  var inv = c.prepare("SELECT id, number, issue_date, due_date, status, total_gross FROM invoices WHERE customer_id = ? AND status IN ('issued', 'paid') ORDER BY issue_date, id").all(customerId);
+  var pay = c.prepare("SELECT p.id, p.amount, p.paid_at, p.method, p.reference, i.number FROM payments p JOIN invoices i ON i.id = p.invoice_id " +
+    "WHERE i.customer_id = ? AND i.status IN ('issued', 'paid') ORDER BY p.paid_at, p.id").all(customerId);
+
+  var opening = 0;
+  var lines = [];
+  inv.forEach(function (i) {
+    if (i.issue_date < from) opening += i.total_gross;
+    else if (i.issue_date <= to) lines.push({ date: i.issue_date, type: 'invoice', text: 'Rechnung ' + i.number, number: i.number, invoice_id: i.id, debit: i.total_gross, credit: 0, due_date: i.due_date });
+  });
+  pay.forEach(function (p) {
+    if (p.paid_at < from) opening -= p.amount;
+    else if (p.paid_at <= to) {
+      lines.push({ date: p.paid_at, type: 'payment', text: (p.method === 'card' ? 'Kartenzahlung ' : 'Zahlung ') + p.number + (p.reference && p.reference !== p.number ? ' (' + p.reference + ')' : ''), number: p.number, debit: 0, credit: p.amount });
+    }
+  });
+  // same day: invoice before payment
+  lines.sort(function (a, b) {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return a.type === b.type ? 0 : a.type === 'invoice' ? -1 : 1;
+  });
+  var balance = Math.round(opening * 100) / 100;
+  lines.forEach(function (l) {
+    balance = Math.round((balance + l.debit - l.credit) * 100) / 100;
+    l.balance = balance;
+  });
+  return {
+    customer: { id: customer.id, name: customer.name, contact_name: customer.contact_name, street: customer.street, zip: customer.zip, city: customer.city, country: customer.country },
+    from: from,
+    to: to,
+    opening_balance: Math.round(opening * 100) / 100,
+    debit: Math.round(lines.reduce(function (s, l) { return s + l.debit; }, 0) * 100) / 100,
+    credit: Math.round(lines.reduce(function (s, l) { return s + l.credit; }, 0) * 100) / 100,
+    closing_balance: balance,
+    lines: lines
+  };
+}
+
 module.exports = {
+  statement: statement,
   list: list,
   search: search,
   findById: findById,
