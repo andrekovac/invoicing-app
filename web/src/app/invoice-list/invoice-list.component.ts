@@ -20,6 +20,9 @@ export class InvoiceListComponent implements OnInit {
   loading = false;
   error = '';
   info = '';
+  selected: number[] = [];
+  busy = false;
+  bulkErrors: string[] = [];
 
   constructor(private invoiceService: InvoiceService, private paymentService: PaymentService) { }
 
@@ -60,6 +63,7 @@ export class InvoiceListComponent implements OnInit {
     this.invoiceService.page(filter, this.page, this.perPage).subscribe(
       res => {
         this.invoices = res.rows;
+        this.selected = this.selected.filter(id => res.rows.some(r => r.id === id));
         this.total = res.total;
         this.loading = false;
       },
@@ -68,6 +72,63 @@ export class InvoiceListComponent implements OnInit {
         this.loading = false;
       }
     );
+  }
+
+  isSelected(inv: Invoice): boolean {
+    return this.selected.indexOf(inv.id) !== -1;
+  }
+
+  toggle(inv: Invoice): void {
+    this.selected = this.isSelected(inv) ? this.selected.filter(id => id !== inv.id) : this.selected.concat([inv.id]);
+  }
+
+  allSelected(): boolean {
+    return this.invoices.length > 0 && this.invoices.every(inv => this.isSelected(inv));
+  }
+
+  toggleAll(): void {
+    this.selected = this.allSelected() ? [] : this.invoices.map(inv => inv.id);
+  }
+
+  // what the selected invoices allow (drafts can only be issued, ...)
+  canDo(action: string): boolean {
+    const rows = this.invoices.filter(inv => this.isSelected(inv));
+    if (!rows.length) return false;
+    if (action === 'issue') return rows.some(r => r.status === 'draft');
+    if (action === 'paid' || action === 'mail') return rows.some(r => r.status === 'issued');
+    if (action === 'remind') return rows.some(r => this.isOverdue(r));
+    if (action === 'cancel') return rows.some(r => r.status === 'issued' || r.status === 'draft');
+    return false;
+  }
+
+  bulk(action: string): void {
+    const texts: { [k: string]: string } = { issue: 'stellen', paid: 'als bezahlt markieren', cancel: 'stornieren', remind: 'erinnern', mail: 'per Mail senden' };
+    if (!confirm(this.selected.length + ' Rechnungen ' + texts[action] + '?')) return;
+    this.busy = true;
+    this.info = '';
+    this.error = '';
+    this.bulkErrors = [];
+    this.invoiceService.bulk(action, this.selected).subscribe(
+      res => {
+        this.busy = false;
+        this.info = res.done + ' erledigt' + (res.failed ? ', ' + res.failed + ' nicht möglich' : '');
+        this.bulkErrors = res.results.filter(r => !r.ok).map(r => {
+          const inv = this.invoices.find(i => i.id === r.id);
+          return (inv && inv.number ? inv.number : '#' + r.id) + ': ' + r.error;
+        });
+        this.selected = [];
+        this.load();
+        this.invoiceService.summary().subscribe(s => this.summary = s);
+      },
+      err => {
+        this.busy = false;
+        this.error = (err.error && err.error.error) || 'Fehler';
+      }
+    );
+  }
+
+  csvUrl(): string {
+    return this.invoiceService.csvUrl({ q: this.q, status: this.status, sort: this.sort, order: this.order });
   }
 
   pdfUrl(inv: Invoice): string {

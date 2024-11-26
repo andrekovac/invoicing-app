@@ -123,6 +123,15 @@ export class InvoiceService {
     return this.http.post<any>(this.base + '/' + id + '/mail', {});
   }
 
+  bulk(action: string, ids: number[], paidAt?: string): Observable<{ done: number; failed: number; results: { id: number; ok: boolean; error?: string; number?: string }[] }> {
+    return this.http.post<any>(this.base + '/bulk', { action, ids, paid_at: paidAt });
+  }
+
+  csvUrl(filter: InvoiceFilter): string {
+    const q = this.params(filter).toString();
+    return this.base + '/export.csv' + (q ? '?' + q : '');
+  }
+
   pdfUrl(id: number): string {
     return this.base + '/' + id + '/pdf';
   }

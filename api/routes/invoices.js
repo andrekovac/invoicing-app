@@ -15,6 +15,7 @@ const invoiceNumber = require('../lib/invoice-number');
 const validate = require('../lib/validate');
 const flags = require('../lib/flags');
 const recurring = require('../services/recurring');
+const csv = require('../lib/csv');
 
 const router = express.Router();
 
@@ -119,6 +120,31 @@ router.get('/', function (req, res) {
   res.json(invoices.list(req.accountId, opts));
 });
 
+// the list as csv, same filters as GET / (no paging), for "Export" in the list
+var LIST_CSV_HEAD = ['Nummer', 'Kunde', 'Datum', 'Fällig', 'Status', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Bezahlt', 'Offen'];
+var STATUS_TEXT = { draft: 'Entwurf', issued: 'Gestellt', paid: 'Bezahlt', cancelled: 'Storniert' };
+
+function csvNum(n) {
+  return money.round2(n || 0).toFixed(2).replace('.', ',');
+}
+
+router.get('/export.csv', function (req, res) {
+  var q = req.query;
+  var opts = { status: q.status, customer_id: q.customer_id, q: q.q ? String(q.q).trim() : '', from: q.from, to: q.to, sort: q.sort, order: q.order };
+  if (opts.status && STATUSES.indexOf(opts.status) === -1) return res.status(400).json({ error: 'Status ungültig' });
+  if ((opts.from && !validate.isDate(opts.from)) || (opts.to && !validate.isDate(opts.to))) return res.status(400).json({ error: 'Datum ungültig' });
+  if (opts.sort && !invoices.SORT[opts.sort]) return res.status(400).json({ error: 'Sortierung ungültig' });
+  var rows = invoices.list(req.accountId, opts).map(function (inv) {
+    var open = inv.status === 'issued' ? inv.total_gross - inv.paid_amount : 0;
+    return [inv.number || '', inv.customer_name, inv.issue_date ? inv.issue_date.split('-').reverse().join('.') : '',
+      inv.due_date ? inv.due_date.split('-').reverse().join('.') : '', STATUS_TEXT[inv.status] || inv.status,
+      csvNum(inv.total_net), inv.tax_rate, csvNum(inv.total_tax), csvNum(inv.total_gross), csvNum(inv.paid_amount), csvNum(open)];
+  });
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="rechnungen-liste.csv"');
+  res.send('\ufeff' + csv.stringify([LIST_CSV_HEAD].concat(rows)));
+});
+
 router.get('/summary', function (req, res) {
   res.json(invoices.summary(req.accountId));
 });
@@ -147,7 +173,7 @@ router.post('/preview', function (req, res) {
 //   POST /bulk { action: 'issue' | 'paid' | 'cancel' | 'remind', ids: [1, 2, 3], paid_at? }
 // every invoice on its own, one failing does not stop the others.
 // answer: { done: 2, failed: 1, results: [{ id, ok, error?, number? }] }
-var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind'];
+var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind', 'mail'];
 var BULK_MAX = 100;
 
 function bulkOne(req, action, id) {
@@ -175,6 +201,28 @@ function bulkOne(req, action, id) {
       var overdue = reminders.overdueInvoices(req.accountId).find(function (i) { return i.id === id; });
       if (!overdue) return { id: id, ok: false, error: 'Rechnung ist nicht überfällig' };
       reminders.sendReminder(overdue);
+      return { id: id, ok: true, number: inv.number };
+    }
+    case 'mail': {
+      if (inv.status !== 'issued') return { id: id, ok: false, error: 'nur offene Rechnungen' };
+      var full = invoices.getById(id);
+      var cust = full.customer || {};
+      if (!cust.email) return { id: id, ok: false, error: 'Kunde hat keine E-Mail-Adresse' };
+      var acc = db.open().prepare('SELECT name FROM accounts WHERE id = ?').get(full.account_id) || {};
+      mailer.queue({
+        account_id: full.account_id,
+        invoice_id: full.id,
+        template: 'invoice',
+        to: cust.email,
+        vars: {
+          greeting: mailer.greeting(cust),
+          number: full.number,
+          amount: money.formatEuro(full.total_gross),
+          due: full.due_date ? full.due_date.split('-').reverse().join('.') : '',
+          pay_line: '\nOder direkt mit Karte bezahlen: ' + links.create(full).url + '\n',
+          account: acc.name
+        }
+      });
       return { id: id, ok: true, number: inv.number };
     }
   }

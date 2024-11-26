@@ -77,3 +77,24 @@ test('wrong input', async function () {
   assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'issue', ids: ['x'] })).status, 400);
   assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'paid', ids: [1], paid_at: '1.8.2023' })).status, 400);
 });
+
+test('mail several invoices', async function () {
+  const c = helpers.client(srv.base);
+  await c.login('albers');
+  const list = await c.get('/api/v1/invoices?status=issued&per_page=3&page=1');
+  const ids = list.body.map(function (i) { return i.id; });
+  const res = await c.post('/api/v1/invoices/bulk', { action: 'mail', ids: ids });
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.done + res.body.failed, ids.length);
+  assert.ok(res.body.done >= 1);
+});
+
+test('list as csv with the same filter', async function () {
+  const c = helpers.client(srv.base);
+  await c.login('brandt');
+  const res = await c.get('/api/v1/invoices/export.csv?status=paid');
+  assert.strictEqual(res.status, 200);
+  const lines = res.body.trim().split('\r\n');
+  assert.ok(lines[0].indexOf('Nummer;Kunde') !== -1);
+  lines.slice(1).forEach(function (l) { assert.ok(l.indexOf(';Bezahlt;') !== -1); });
+});

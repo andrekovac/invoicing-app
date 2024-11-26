@@ -18,17 +18,30 @@
   </select>
   <button class="secondary" (click)="search()">Suchen</button>
   <span class="spacer"></span>
+  <a [href]="csvUrl()">CSV</a>
   <a routerLink="/invoices/recurring">Serienrechnungen</a>
   <button routerLink="/invoices/new">Neue Rechnung</button>
   <span class="muted" *ngIf="loading">lädt ...</span>
 </div>
 
+<div class="toolbar bulk" *ngIf="selected.length">
+  <b>{{ selected.length }} ausgewählt</b>
+  <button class="secondary" [disabled]="busy || !canDo('issue')" (click)="bulk('issue')">Stellen</button>
+  <button class="secondary" [disabled]="busy || !canDo('mail')" (click)="bulk('mail')">Per Mail senden</button>
+  <button class="secondary" [disabled]="busy || !canDo('paid')" (click)="bulk('paid')">Bezahlt</button>
+  <button class="secondary" [disabled]="busy || !canDo('remind')" (click)="bulk('remind')">Erinnern</button>
+  <button class="danger" [disabled]="busy || !canDo('cancel')" (click)="bulk('cancel')">Stornieren</button>
+  <a href="" (click)="selected = []; $event.preventDefault()">Auswahl aufheben</a>
+</div>
+
 <p class="error" *ngIf="error">{{ error }}</p>
 <p class="ok" *ngIf="info">{{ info }}</p>
+<ul class="error" *ngIf="bulkErrors.length"><li *ngFor="let e of bulkErrors">{{ e }}</li></ul>
 
 <table>
   <thead>
     <tr>
+      <th><input type="checkbox" [checked]="allSelected()" (change)="toggleAll()"></th>
       <th class="click" (click)="sortBy('number')">Nummer{{ arrow('number') }}</th>
       <th class="click" (click)="sortBy('customer_name')">Kunde{{ arrow('customer_name') }}</th>
       <th class="click" (click)="sortBy('issue_date')">Datum{{ arrow('issue_date') }}</th>
@@ -40,7 +53,8 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let inv of invoices">
+    <tr *ngFor="let inv of invoices" [class.selected]="isSelected(inv)">
+      <td><input type="checkbox" [checked]="isSelected(inv)" (change)="toggle(inv)"></td>
       <td><a [routerLink]="inv.status === 'draft' ? ['/invoices', inv.id, 'edit'] : ['/invoices', inv.id]">{{ inv.number || '(Entwurf)' }}</a></td>
       <td>{{ inv.customer_name }}</td>
       <td>{{ inv.issue_date | dateDe }}</td>
@@ -53,7 +67,7 @@
         <a href="" *ngIf="inv.status === 'issued'" (click)="copyLink(inv, $event)"> Zahlungslink</a>
       </td>
     </tr>
-    <tr *ngIf="!loading && !invoices.length"><td colspan="8" class="muted">Keine Rechnungen</td></tr>
+    <tr *ngIf="!loading && !invoices.length"><td colspan="9" class="muted">Keine Rechnungen</td></tr>
   </tbody>
 </table>
 
