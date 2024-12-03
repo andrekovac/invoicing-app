@@ -61,7 +61,8 @@ function invoiceLines(inv, account) {
   lines.push([c.zip, c.city].filter(Boolean).join(' '));
   lines.push('');
   lines.push('');
-  lines.push(pad('RECHNUNG ' + (inv.number || '(Entwurf)'), 50) + pad('Datum: ' + dateDe(inv.issue_date), 28, true));
+  var credit = inv.total_gross < 0;
+  lines.push(pad((credit ? 'GUTSCHRIFT ' : 'RECHNUNG ') + (inv.number || '(Entwurf)'), 50) + pad('Datum: ' + dateDe(inv.issue_date), 28, true));
   if (inv.due_date) lines.push(pad('', 50) + pad('Fällig: ' + dateDe(inv.due_date), 28, true));
   if (c.vat_id) lines.push(pad('', 50) + pad('USt-IdNr.: ' + c.vat_id, 28, true));
   lines.push('');
@@ -99,7 +100,10 @@ function invoiceLines(inv, account) {
     lines.push('Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).');
   }
   lines.push('');
-  if (inv.due_date) {
+  if (credit) {
+    if (inv.note && inv.note.indexOf('Gutschrift zu ') === 0) lines.push(inv.note.split(':')[0] + '.');
+    lines.push('Der Betrag wird mit Ihren offenen Rechnungen verrechnet oder erstattet.');
+  } else if (inv.due_date) {
     lines.push('Bitte überweisen Sie den Betrag bis zum ' + dateDe(inv.due_date) + '.');
   }
   if (account.iban) lines.push('IBAN: ' + account.iban);

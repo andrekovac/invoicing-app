@@ -54,7 +54,8 @@ const EVENT_TEXT: { [k: string]: string } = {
   cancelled: 'storniert',
   note: 'Notiz geändert',
   status: 'Status geändert',
-  reminder: 'Erinnerung gesendet'
+  reminder: 'Erinnerung gesendet',
+  credit_note: 'Gutschrift'
 };
 
 // read only page of one invoice. the amounts are the stored ones (what the customer got),
@@ -66,7 +67,7 @@ const EVENT_TEXT: { [k: string]: string } = {
     <p class="error" *ngIf="error()">{{ error() }}</p>
     <ng-container *ngIf="invoice() as inv">
       <div class="toolbar">
-        <h1 style="margin: 0;">Rechnung {{ inv.number || '(Entwurf)' }}</h1>
+        <h1 style="margin: 0;">{{ inv.total_gross < 0 ? 'Gutschrift' : 'Rechnung' }} {{ inv.number || '(Entwurf)' }}</h1>
         <span class="status status-{{ inv.status }}">{{ inv.status | status }}</span>
         <span class="spacer"></span>
         <a [href]="pdfUrl()" target="_blank">PDF öffnen</a>
@@ -149,7 +150,8 @@ const EVENT_TEXT: { [k: string]: string } = {
       <div class="toolbar" style="margin-top: 16px;">
         <button class="secondary" (click)="back()">Zurück zur Liste</button>
         <button class="secondary" *ngIf="inv.status === 'issued'" (click)="copyPayLink()">Zahlungslink kopieren</button>
-        <button class="secondary" *ngIf="inv.status !== 'cancelled'" (click)="makeRecurring()">Als Serienrechnung</button>
+        <button class="secondary" *ngIf="inv.status !== 'cancelled' && inv.total_gross >= 0" (click)="makeRecurring()">Als Serienrechnung</button>
+        <button class="danger" *ngIf="(inv.status === 'issued' || inv.status === 'paid') && inv.total_gross > 0" (click)="creditNote()">Gutschrift erstellen</button>
         <span class="ok" *ngIf="info()">{{ info() }}</span>
       </div>
     </ng-container>
@@ -175,7 +177,13 @@ export class InvoiceViewComponent implements OnInit {
   constructor(private route: ActivatedRoute, private router: Router) { }
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    // same component when going from an invoice to its credit note, so follow the param
+    this.route.paramMap.subscribe(params => this.load(Number(params.get('id'))));
+  }
+
+  load(id: number): void {
+    this.error.set('');
+    this.info.set('');
     getJson<ViewInvoice>('/api/v1/invoices/' + id)
       .then(inv => this.invoice.set(inv))
       .catch(err => this.error.set(err.status === 404 ? 'Rechnung nicht gefunden' : err.message));
@@ -205,6 +213,8 @@ export class InvoiceViewComponent implements OnInit {
     if (e.type === 'issued' && e.data && e.data.number) text += ' (' + e.data.number + ')';
     if (e.type === 'created' && e.data && e.data.copied_from) text += ' als Kopie von ' + e.data.copied_from;
     if (e.type === 'created' && e.data && e.data.recurring_from) text += ' (Serienrechnung)';
+    if (e.type === 'created' && e.data && e.data.credit_for) text += ' als Gutschrift zu ' + e.data.credit_for;
+    if (e.type === 'credit_note' && e.data) text += ' ' + e.data.number + ' über ' + String(e.data.amount).replace('.', ',') + ' €';
     return text;
   }
 
@@ -222,6 +232,17 @@ export class InvoiceViewComponent implements OnInit {
     if (!inv || !confirm('Diese Rechnung jeden Monat neu stellen?')) return;
     sendJson<any>('POST', '/api/v1/invoices/' + inv.id + '/recurring', {})
       .then(rec => this.router.navigate(['/invoices', 'recurring'], { queryParams: { id: rec.id } }))
+      .catch(err => this.error.set(err.message));
+  }
+
+  // whole invoice. for single positions use the api (items: [{ item_id, quantity }])
+  creditNote(): void {
+    const inv = this.invoice();
+    if (!inv) return;
+    const reason = prompt('Gutschrift über die ganze Rechnung ' + inv.number + '. Grund (steht in der internen Notiz):');
+    if (!reason || !reason.trim()) return;
+    sendJson<any>('POST', '/api/v1/invoices/' + inv.id + '/credit-note', { reason: reason.trim() })
+      .then(credit => this.router.navigate(['/invoices', credit.id]))
       .catch(err => this.error.set(err.message));
   }
 

@@ -489,6 +489,108 @@ router.post('/:id/recurring', function (req, res, next) {
   }
 });
 
+// ---- credit notes (Gutschrift / Stornorechnung) ----
+// an issued invoice is never changed, a correction is a new invoice with negative amounts.
+//   POST /:id/credit-note { reason, items?: [{ item_id, quantity }] }
+// without items the whole invoice is credited. the credit note gets its own number, is
+// 'paid' right away (settled against the original) and is booked on the original as a
+// payment with method 'credit', so the open amount goes down.
+// full credit of an invoice that is not paid at all: the original is cancelled as well
+function creditedSoFar(inv) {
+  return invoices.events(inv.id)
+    .filter(function (e) { return e.type === 'credit_note' && e.data; })
+    .reduce(function (sum, e) { return sum + (Number(e.data.amount) || 0); }, 0);
+}
+
+function creditItems(inv, wanted) {
+  var items = invoices.itemsFor(inv.id);
+  if (!wanted || !wanted.length) {
+    return items.map(function (it) {
+      return { description: it.description, quantity: -Number(it.quantity), unit_price: it.unit_price };
+    });
+  }
+  var out = [];
+  for (var i = 0; i < wanted.length; i++) {
+    var w = wanted[i] || {};
+    var it = items.find(function (x) { return x.id === Number(w.item_id); });
+    if (!it) return 'Position ' + w.item_id + ' gehört nicht zur Rechnung';
+    var q = w.quantity === undefined ? Number(it.quantity) : Number(String(w.quantity).replace(',', '.'));
+    if (isNaN(q) || q <= 0 || q > Number(it.quantity)) return 'Menge für Position ' + it.position + ' ungültig (höchstens ' + it.quantity + ')';
+    out.push({ description: it.description, quantity: -q, unit_price: it.unit_price });
+  }
+  return out;
+}
+
+router.post('/:id/credit-note', function (req, res, next) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  if (inv.status !== 'issued' && inv.status !== 'paid') return res.status(409).json({ error: 'nur gestellte oder bezahlte Rechnungen' });
+  if (inv.total_gross < 0) return res.status(409).json({ error: 'Gutschrift zu einer Gutschrift geht nicht' });
+  var body = req.body || {};
+  var reason = String(body.reason || '').trim();
+  if (!reason) return res.status(400).json({ error: 'Grund fehlt' });
+  if (reason.length > 500) return res.status(400).json({ error: 'Grund zu lang' });
+  var items = creditItems(inv, body.items);
+  if (typeof items === 'string') return res.status(400).json({ error: items });
+
+  var net = pricing.sumItems(items);
+  if (inv.discount_percent) net = net * (1 - inv.discount_percent / 100);
+  var totalGross = money.round2(pricing.gross(net, inv.tax_rate));
+  var totalNet = money.round2(net);
+  var already = creditedSoFar(inv);
+  if (money.round2(-(already + totalGross)) > inv.total_gross) {
+    return res.status(409).json({ error: 'mehr als der Rechnungsbetrag gutgeschrieben (bisher ' + money.formatEuro(already) + ')' });
+  }
+
+  var c = db.open();
+  var today = utils.today();
+  var creditId;
+  c.exec('BEGIN');
+  try {
+    var info = c.prepare('INSERT INTO invoices (account_id, customer_id, status, issue_date, due_date, tax_rate, legacy_tax_rate, discount_percent, note, total_net, total_tax, total_gross) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(inv.account_id, inv.customer_id, 'draft', today, today, inv.tax_rate, inv.legacy_tax_rate, inv.discount_percent || 0,
+        'Gutschrift zu ' + inv.number + ': ' + reason, totalNet, money.round2(totalGross - totalNet), totalGross);
+    creditId = Number(info.lastInsertRowid);
+    var stmt = c.prepare('INSERT INTO invoice_items (invoice_id, position, description, quantity, unit_price) VALUES (?, ?, ?, ?, ?)');
+    items.forEach(function (it, i) {
+      stmt.run(creditId, i + 1, it.description, it.quantity, it.unit_price);
+    });
+    c.prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+      .run(creditId, inv.account_id, 'created', JSON.stringify({ credit_for: inv.number }), req.user.id);
+    c.exec('COMMIT');
+  } catch (err) {
+    c.exec('ROLLBACK');
+    return next(err);
+  }
+
+  try {
+    var credit = invoices.issue(creditId);
+    invoices.markPaid(creditId, today);
+    c.prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+      .run(inv.id, inv.account_id, 'credit_note', JSON.stringify({ number: credit.number, amount: totalGross, reason: reason }), req.user.id);
+    var whole = !body.items || !body.items.length;
+    var open = payments.openAmount(inv);
+    if (inv.status === 'issued' && whole && open === inv.total_gross) {
+      invoices.setStatus(inv.id, 'cancelled');
+    } else if (inv.status === 'issued' && open > 0) {
+      payments.recordPayment(inv, { amount: Math.min(-totalGross, open), method: 'credit', paid_at: today, reference: credit.number, user_id: req.user.id });
+    }
+    res.status(201).json(invoices.getById(creditId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// credit notes of an invoice
+router.get('/:id/credit-notes', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var numbers = invoices.events(inv.id)
+    .filter(function (e) { return e.type === 'credit_note' && e.data && e.data.number; })
+    .map(function (e) { return e.data.number; });
+  res.json(numbers.map(function (n) { return invoices.findByNumber(req.accountId, n); }).filter(Boolean));
+});
+
 // text for the mail to the customer (the pdf is attached by hand)
 router.get('/:id/mail', function (req, res) {
   if (!ownInvoice(req, res)) return;
