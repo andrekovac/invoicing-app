@@ -128,3 +128,39 @@ export interface InvoiceFilter {
   q?: string;
   year?: number;
 }
+
+export interface MonthRevenue {
+  month: string;
+  invoices: number;
+  net: number;
+  tax: number;
+  gross: number;
+  received: number;
+}
+
+export interface Revenue {
+  year: number;
+  months: MonthRevenue[];
+  total: Omit<MonthRevenue, 'month'>;
+}
+
+export interface ProductRow {
+  id: number;
+  account_id: number;
+  sku: string;
+  name: string;
+  unit: string | null;
+  unit_price: number;
+  tax_rate: number;
+  active: number;
+}
+
+export interface Product {
+  id: number;
+  sku: string;
+  name: string;
+  unit: string | null;
+  netPrice: number;
+  taxRate: number;
+  active: boolean;
+}

@@ -1,7 +1,7 @@
 // db access for v2. node:sqlite is sync, so these are plain sync functions.
 // same connection as v1 (db.js), when we move to postgres only this file changes
 import db from '../../db.js';
-import type { CustomerRow, InvoiceFilter, InvoiceRow, ItemRow } from './types.ts';
+import type { CustomerRow, InvoiceFilter, InvoiceRow, ItemRow, ProductRow } from './types.ts';
 
 interface Statement {
   all(...args: unknown[]): unknown[];
@@ -58,4 +58,30 @@ export function invoice(id: number): InvoiceRow | undefined {
 
 export function items(invoiceId: number): ItemRow[] {
   return prepare('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY position, id').all(invoiceId) as ItemRow[];
+}
+
+export interface MonthSumRow {
+  m: string;
+  n: number;
+  net: number;
+  tax: number;
+  gross: number;
+}
+
+// billed per month (issue date), only issued and paid invoices
+export function billedPerMonth(accountId: number, year: number): MonthSumRow[] {
+  return prepare("SELECT substr(issue_date, 6, 2) AS m, count(*) AS n, sum(total_net) AS net, sum(total_tax) AS tax, sum(total_gross) AS gross " +
+    "FROM invoices WHERE account_id = ? AND status IN ('issued', 'paid') AND substr(issue_date, 1, 4) = ? GROUP BY m")
+    .all(accountId, String(year)) as MonthSumRow[];
+}
+
+// received per month (payment date)
+export function receivedPerMonth(accountId: number, year: number): { m: string; paid: number }[] {
+  return prepare("SELECT substr(p.paid_at, 6, 2) AS m, sum(p.amount) AS paid FROM payments p JOIN invoices i ON i.id = p.invoice_id " +
+    "WHERE p.account_id = ? AND i.status <> 'cancelled' AND substr(p.paid_at, 1, 4) = ? GROUP BY m")
+    .all(accountId, String(year)) as { m: string; paid: number }[];
+}
+
+export function products(accountId: number, all = false): ProductRow[] {
+  return prepare('SELECT * FROM products WHERE account_id = ?' + (all ? '' : ' AND active = 1') + ' ORDER BY sku').all(accountId) as ProductRow[];
 }

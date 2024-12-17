@@ -64,7 +64,7 @@ test('tax per rate', async function () {
 test('one quarter', async function () {
   const res = await albers.get('/api/v1/reports/tax?year=2021&quarter=2');
   assert.strictEqual(res.body.from, '2021-04-01');
-  assert.strictEqual(res.body.quarter, 2);
+  assert.strictEqual(res.body.to, '2021-06-30');
 });
 
 test('wrong year', async function () {

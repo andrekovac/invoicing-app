@@ -1,4 +1,5 @@
-// shared setup for the http tests: in-memory db with demo data, server on a free port,
+// shared setup for the http tests: in-memory db with demo data, server on a free port of
+// 127.0.0.1 (the urls use 127.0.0.1, a server on :: could share the port number with another one),
 // a small fetch wrapper that keeps the session cookie per client
 process.env.APP_DB_FILE = ':memory:';
 
@@ -15,7 +16,7 @@ function startServer() {
   require('../seed/seed').seed();
   const app = require('../server');
   return new Promise(function (resolve) {
-    const server = app.listen(0, function () {
+    const server = app.listen(0, '127.0.0.1', function () {
       resolve({
         server: server,
         base: 'http://127.0.0.1:' + server.address().port,

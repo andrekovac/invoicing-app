@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Rechnungen API v1
-  version: 1.4.0
+  version: 1.5.0
   description: |
     Api of the invoicing app. All amounts are euros as numbers (119.0), dates are
     `YYYY-MM-DD`. Login sets the session cookie `rsid`, every other call sends it.
@@ -19,6 +19,10 @@ tags:
   - name: items
   - name: payments
   - name: portal
+  - name: recurring
+  - name: products
+  - name: reports
+  - name: export
   - name: admin
 
 paths:
@@ -258,7 +262,7 @@ paths:
               type: object
               required: [action, ids]
               properties:
-                action: { type: string, enum: [issue, paid, cancel, remind] }
+                action: { type: string, enum: [issue, paid, cancel, remind, mail] }
                 ids: { type: array, items: { type: integer }, maxItems: 100 }
                 paid_at: { type: string, format: date }
       responses:
@@ -602,6 +606,315 @@ paths:
       responses:
         '204': { description: Deleted }
 
+  /customers/search:
+    get:
+      tags: [customers]
+      summary: Customer search by part of the name (any case)
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 100 } }
+        - { name: with_open, in: query, schema: { type: string, enum: ['1'] }, description: 'only customers with open invoices' }
+        - { name: limit, in: query, schema: { type: integer, maximum: 50, default: 50 } }
+      responses:
+        '200': { description: Hits, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CustomerHit' } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /customers/{id}/statement:
+    get:
+      tags: [customers]
+      summary: Statement of account (invoices and payments with running balance)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: format, in: query, schema: { type: string, enum: [json, pdf, txt], default: json } }
+      responses:
+        '200':
+          description: Statement
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Statement' } }
+            application/pdf: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /invoices/export.csv:
+    get:
+      tags: [invoices]
+      summary: The invoice list as csv (same filters as GET /invoices, no paging)
+      responses:
+        '200': { description: CSV (semicolon, utf-8 with BOM), content: { text/csv: { schema: { type: string } } } }
+  /invoices/recurring:
+    get:
+      tags: [recurring]
+      summary: Recurring invoices of the account
+      responses:
+        '200': { description: List, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Recurring' } } } } }
+    post:
+      tags: [recurring]
+      summary: New recurring invoice from a template invoice
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RecurringInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Recurring' } } } }
+        '400': { description: 'Wrong input, as `{ errors: [{ field, message }] }`' }
+  /invoices/recurring/{rid}:
+    parameters:
+      - { name: rid, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [recurring]
+      summary: One recurring invoice with its copies and a preview of the next one
+      responses:
+        '200': { description: Recurring invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Recurring' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [recurring]
+      summary: Change interval, day, payment days, end, auto_issue, send_mail, title
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/RecurringInput' } } }
+      responses:
+        '200': { description: Changed, content: { application/json: { schema: { $ref: '#/components/schemas/Recurring' } } } }
+    delete:
+      tags: [recurring]
+      summary: Delete (the copies stay)
+      responses:
+        '204': { description: Deleted }
+  /invoices/recurring/{rid}/pause:
+    post:
+      tags: [recurring]
+      summary: Pause
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Paused, content: { application/json: { schema: { $ref: '#/components/schemas/Recurring' } } } }
+  /invoices/recurring/{rid}/resume:
+    post:
+      tags: [recurring]
+      summary: Resume (no copies for the months in between)
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Active again, content: { application/json: { schema: { $ref: '#/components/schemas/Recurring' } } } }
+        '409': { description: ended }
+  /invoices/recurring/{rid}/run:
+    post:
+      tags: [recurring]
+      summary: Make the next copy now
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201': { description: The new invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '409': { description: ended }
+  /invoices/{id}/recurring:
+    post:
+      tags: [recurring]
+      summary: This invoice as template for a recurring invoice (default start next month)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/RecurringInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Recurring' } } } }
+  /invoices/{id}/credit-note:
+    post:
+      tags: [invoices]
+      summary: Credit note (negative amounts, own number) for an issued or paid invoice
+      description: |
+        Without `items` the whole invoice is credited. The credit note is paid right away and
+        is booked on the original as a payment with method `credit`. Whole invoice and nothing
+        paid yet: the original is cancelled.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 500 }
+                items: { type: array, items: { type: object, properties: { item_id: { type: integer }, quantity: { type: number } } } }
+      responses:
+        '201': { description: The credit note, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '409': { description: 'draft, cancelled or more than the invoice' }
+  /invoices/{id}/credit-notes:
+    get:
+      tags: [invoices]
+      summary: Credit notes of an invoice
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: List, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/InvoiceListItem' } } } } }
+  /products:
+    get:
+      tags: [products]
+      summary: Products (only active ones without `all=1`)
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: 'start of the number or part of the name' }
+        - { name: all, in: query, schema: { type: string, enum: ['1'] } }
+      responses:
+        '200': { description: List, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Product' } } } } }
+    post:
+      tags: [products]
+      summary: New product
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ProductInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        '400': { description: 'Wrong input, as `{ errors: [{ field, message }] }`' }
+        '409': { description: number exists }
+  /products/import:
+    post:
+      tags: [products]
+      summary: Import the old price list (csv Artikelnummer;Bezeichnung;Einheit;Preis;USt)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { csv: { type: string } } } } }
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created: { type: integer }
+                  updated: { type: integer }
+                  errors: { type: array, items: { type: object, properties: { line: { type: integer }, message: { type: string } } } }
+  /products/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [products]
+      summary: One product
+      responses:
+        '200': { description: Product, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+    put:
+      tags: [products]
+      summary: Change (also `active`)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ProductInput' } } }
+      responses:
+        '200': { description: Changed, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+    delete:
+      tags: [products]
+      summary: Delete, or archive when the product is on invoices
+      responses:
+        '200': { description: 'Archived: `{ archived: true, product }`' }
+        '204': { description: Deleted }
+  /reports/revenue:
+    get:
+      tags: [reports]
+      summary: Revenue per month of a year (billed, received, drafts)
+      parameters:
+        - { name: year, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: 12 months and the total, content: { application/json: { schema: { $ref: '#/components/schemas/Revenue' } } } }
+        '400': { description: 'Wrong year, as `{ message }`' }
+  /reports/open-items:
+    get:
+      tags: [reports]
+      summary: Open invoices with days overdue, in buckets
+      parameters:
+        - { name: as_of, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Open items }
+  /reports/top-customers:
+    get:
+      tags: [reports]
+      summary: Customers with the most revenue in a year
+      parameters:
+        - { name: year, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      responses:
+        '200': { description: Ranking }
+  /reports/tax:
+    get:
+      tags: [reports]
+      summary: Net and tax per tax rate (year or quarter)
+      parameters:
+        - { name: year, in: query, schema: { type: integer } }
+        - { name: quarter, in: query, schema: { type: integer, enum: [1, 2, 3, 4] } }
+      responses:
+        '200': { description: Per rate }
+  /reports/recurring:
+    get:
+      tags: [reports]
+      summary: Coming copies of recurring invoices
+      parameters:
+        - { name: months, in: query, schema: { type: integer, minimum: 1, maximum: 12, default: 3 } }
+      responses:
+        '200': { description: Coming invoices }
+  /reports/years:
+    get:
+      tags: [reports]
+      summary: Years with invoices
+      responses:
+        '200': { description: Years }
+  /export/invoices.csv:
+    get:
+      tags: [export]
+      summary: One row per invoice (issued and paid) of the period
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: cancelled, in: query, schema: { type: string, enum: ['1'] } }
+      responses:
+        '200': { description: CSV (semicolon, utf-8 with BOM), content: { text/csv: { schema: { type: string } } } }
+  /export/items.csv:
+    get:
+      tags: [export]
+      summary: One row per position
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: CSV, content: { text/csv: { schema: { type: string } } } }
+  /export/customers.csv:
+    get:
+      tags: [export]
+      summary: Customers with debtor numbers (10000 + id)
+      responses:
+        '200': { description: CSV, content: { text/csv: { schema: { type: string } } } }
+  /export/datev.csv:
+    get:
+      tags: [export]
+      summary: Old booking export for the tax advisor (windows-1252, fixed columns)
+      description: |
+        Same columns as the desktop program wrote: Umsatz, Soll/Haben, WKZ, Konto (debtor),
+        Gegenkonto (revenue account SKR03), BU-Schlüssel, Belegdatum (DDMM), Belegfeld 1 and 2,
+        Buchungstext, USt-Satz. Cancelled invoices come twice (S and H).
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: CSV, content: { text/csv: { schema: { type: string } } } }
+  /export/datev/summary:
+    get:
+      tags: [export]
+      summary: Bookings and gross per tax rate of the booking export
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Per rate }
+  /admin/flags:
+    get:
+      tags: [admin]
+      summary: Feature flags of the account
+      responses:
+        '200': { description: Flags, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Flag' } } } } }
+  /admin/flags/{name}:
+    put:
+      tags: [admin]
+      summary: 'Switch a flag for the account (`enabled: null` = back to the default)'
+      parameters:
+        - { name: name, in: path, required: true, schema: { type: string, example: NEW_PDF_LAYOUT } }
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean, nullable: true } } } } }
+      responses:
+        '200': { description: The flag, content: { application/json: { schema: { $ref: '#/components/schemas/Flag' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     session:
@@ -753,3 +1066,110 @@ components:
         subject: { type: string }
         body: { type: string }
         created_at: { type: string }
+    CustomerHit:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        contact_name: { type: string, nullable: true }
+        zip: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        legacy_no: { type: string, nullable: true }
+        invoice_count: { type: integer }
+        last_invoice_date: { type: string, nullable: true }
+        open_amount: { type: number }
+    Statement:
+      type: object
+      properties:
+        customer: { type: object }
+        from: { type: string }
+        to: { type: string }
+        opening_balance: { type: number }
+        debit: { type: number }
+        credit: { type: number }
+        closing_balance: { type: number }
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string }
+              type: { type: string, enum: [invoice, payment] }
+              text: { type: string }
+              debit: { type: number }
+              credit: { type: number }
+              balance: { type: number }
+    RecurringInput:
+      type: object
+      properties:
+        template_invoice_id: { type: integer }
+        title: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date, nullable: true }
+        interval_months: { type: integer, enum: [1, 2, 3, 6, 12], default: 1 }
+        day_of_month: { type: integer, minimum: 1, maximum: 31 }
+        payment_days: { type: integer, minimum: 0, maximum: 90, default: 14 }
+        auto_issue: { type: boolean, default: true }
+        send_mail: { type: boolean, default: false }
+    Recurring:
+      allOf:
+        - $ref: '#/components/schemas/RecurringInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            customer_id: { type: integer }
+            customer_name: { type: string }
+            template_number: { type: string, nullable: true }
+            next_date: { type: string, nullable: true, description: 'null = ended' }
+            active: { type: integer, enum: [0, 1] }
+            last_run_at: { type: string, nullable: true }
+            copies: { description: 'list: number of copies, detail: the copies' }
+            next: { type: object, nullable: true, description: 'detail only: preview of the next copy' }
+    ProductInput:
+      type: object
+      properties:
+        sku: { type: string, example: VK-100 }
+        name: { type: string }
+        unit: { type: string, nullable: true }
+        unit_price: { oneOf: [{ type: number }, { type: string, example: '3,85' }] }
+        tax_rate: { type: integer, enum: [19, 7, 0], default: 19 }
+        active: { type: boolean }
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            account_id: { type: integer }
+            gross_price: { type: number }
+            created_at: { type: string }
+            updated_at: { type: string, nullable: true }
+    Revenue:
+      type: object
+      properties:
+        year: { type: integer }
+        months:
+          type: array
+          items:
+            type: object
+            properties:
+              month: { type: string, example: 2024-03 }
+              label: { type: string, example: Mär }
+              count: { type: integer }
+              net: { type: number }
+              tax: { type: number }
+              gross: { type: number }
+              paid: { type: number }
+              drafts_gross: { type: number }
+        total: { type: object }
+    Flag:
+      type: object
+      properties:
+        name: { type: string }
+        label: { type: string }
+        enabled: { type: boolean }
+        default: { type: boolean }
+        overridden: { type: boolean }
+        updated_at: { type: string, nullable: true }

@@ -6,10 +6,38 @@ written by hand from them once in a while.
 
 ## Unreleased
 
+## 2024
+
+### Added
+
+- web: Angular 20 (was 11). `web` is an npm workspace now, `npm run dev:web` (port 4200, proxy to the api) and `npm run build:web` from the root. Older pages stay in `AppModule`, new pages are standalone components with signals
+- web: invoice view (`/invoices/:id`) with the stored totals, payments and history
+- web: paging and sorting in the invoice list (`X-Total-Count`), select invoices for bulk actions, list as csv
+- customer search: `GET /api/v1/customers/search?q=` and the page `/customers/search`
+- feature flags per account (`feature_flags`, `lib/flags.js`, `/api/v1/admin/flags`, `FLAGS_ON=...` locally). `NEW_PDF_LAYOUT` is not finished, keep it off
+- reports: revenue per month, open items by age, top customers, tax per rate (`/api/v1/reports/...`) and the page `/reports`
+- recurring invoices (`recurring_invoices`, `services/recurring.js`, `jobs/recurring.js`, `/api/v1/invoices/recurring`), `{monat}` `{jahr}` `{zeitraum}` in item texts
+- exports for the tax advisor: invoices, positions, customers and the old booking format (`/api/v1/export/...`, page `/export`)
+- products with number, unit and price (`/api/v1/products`), import of the old price list, picker in the invoice form
+- start page with the overview and the coming recurring invoices
+- statement of account per customer (`GET /api/v1/customers/:id/statement`, json, pdf, txt)
+- `POST /api/v1/invoices/bulk` action `mail`
+- credit notes: `POST /api/v1/invoices/:id/credit-note` (whole invoice or single positions), button on the invoice view
+- web: feature flags in the settings (admins)
+- api v2: `GET /api/v2/products`, `GET /api/v2/reports/revenue?year=` (TypeScript, read only)
+- CI builds the web app
+- scripts: `npm run recurring -w api -- [until] [account] [--dry]`, `npm run export:month -w api -- <account> [YYYY-MM] [folder]`
+
 ### Fixed
 
 - login lock uses the client ip behind the proxy (`trust proxy` loopback)
 - v2 server errors go through the logger
+- tax report per quarter ends on the last day of the quarter
+- test servers listen on 127.0.0.1, sometimes a test reached another server with the same port on macOS
+
+### Migrations
+
+- `013_feature_flags.sql`, `014_recurring_invoices.sql` (also `invoices.recurring_id`), `015_products.sql`
 
 ## 2023
 

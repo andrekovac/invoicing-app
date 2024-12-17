@@ -20,6 +20,21 @@
   <button type="submit">Speichern</button>
 </form>
 
+<div class="card" *ngIf="flags.length">
+  <h2>Funktionen (Test)</h2>
+  <table>
+    <tbody>
+      <tr *ngFor="let f of flags">
+        <td><code>{{ f.name }}</code></td>
+        <td>{{ f.label }}</td>
+        <td><label class="inline"><input type="checkbox" [checked]="f.enabled" (change)="setFlag(f, !f.enabled)"> an</label></td>
+        <td class="muted">{{ f.overridden ? 'für diese Firma gesetzt' : 'Standard' }}</td>
+        <td><a href="" *ngIf="f.overridden" (click)="resetFlag(f, $event)">zurücksetzen</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <div class="card">
   <h2>Benutzer</h2>
   <table>

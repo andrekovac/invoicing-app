@@ -36,7 +36,7 @@ test.before(function (t, done) {
     ids.push(invoices.issue(inv.id).id);
   });
   token = links.createPortal(c).token;
-  server = app.listen(0, function () {
+  server = app.listen(0, '127.0.0.1', function () {
     base = 'http://127.0.0.1:' + server.address().port;
     done();
   });

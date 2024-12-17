@@ -1,12 +1,14 @@
-// api v2, read only for now: /api/v2/invoices, /api/v2/invoices/:id, /api/v2/customers, /api/v2/customers/:id
+// api v2, read only for now: /api/v2/invoices, /api/v2/invoices/:id, /api/v2/customers, /api/v2/customers/:id,
+// /api/v2/products, /api/v2/reports/revenue
 // mounted from server.js (commonjs) with a dynamic import
 import express from 'express';
 import auth from '../../lib/auth.js';
 import logger from '../../lib/logger.js';
 import { STATUSES } from './types.ts';
-import type { Customer, CustomerRow, ErrorBody, FieldError, InvoiceFilter, InvoiceStatus, Page } from './types.ts';
+import type { Customer, CustomerRow, ErrorBody, FieldError, InvoiceFilter, InvoiceStatus, Page, Product, ProductRow } from './types.ts';
 import { getInvoice, listInvoices } from './invoices.ts';
-import { customer, customers } from './repo.ts';
+import { customer, customers, products } from './repo.ts';
+import { revenue } from './reports.ts';
 
 import type { NextFunction, Request, Response } from 'express';
 
@@ -128,6 +130,37 @@ router.get('/customers/:id/invoices', function (req: Request, res: Response) {
   const { page, perPage } = paging(req.query as Record<string, unknown>, errors);
   if (errors.length) return fail(res, 400, errors);
   res.json(pageOf(listInvoices(row.account_id, { customerId: row.id }), page, perPage));
+});
+
+function toProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    sku: row.sku,
+    name: row.name,
+    unit: row.unit,
+    netPrice: row.unit_price,
+    taxRate: row.tax_rate,
+    active: !!row.active
+  };
+}
+
+router.get('/products', function (req: Request, res: Response) {
+  const query = req.query as Record<string, unknown>;
+  const errors: FieldError[] = [];
+  const { page, perPage } = paging(query, errors);
+  if (errors.length) return fail(res, 400, errors);
+  res.json(pageOf(products((req as any).accountId, query.all === 'true').map(toProduct), page, perPage));
+});
+
+router.get('/reports/revenue', function (req: Request, res: Response) {
+  const query = req.query as Record<string, unknown>;
+  let year = new Date().getFullYear();
+  if (query.year !== undefined) {
+    const y = positiveInt(query.year);
+    if (y === null || y < 2000 || y > 2100) return fail(res, 400, [{ field: 'year', message: 'must be a year from 2000 to 2100' }]);
+    year = y;
+  }
+  res.json(revenue((req as any).accountId, year));
 });
 
 router.use(function (req: Request, res: Response) {

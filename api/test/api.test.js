@@ -31,7 +31,7 @@ function call(method, url, body, noCookie) {
 test.before(function (t, done) {
   db.open();
   require('../seed/seed').seed();
-  server = app.listen(0, function () {
+  server = app.listen(0, '127.0.0.1', function () {
     base = 'http://127.0.0.1:' + server.address().port;
     done();
   });

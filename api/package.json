@@ -11,6 +11,8 @@
     "import": "node --disable-warning=ExperimentalWarning scripts/import-legacy.js",
     "outbox": "node --disable-warning=ExperimentalWarning scripts/send-outbox.js",
     "check:numbers": "node --disable-warning=ExperimentalWarning scripts/check-numbers.js",
+    "recurring": "node --disable-warning=ExperimentalWarning scripts/run-recurring.js",
+    "export:month": "node --disable-warning=ExperimentalWarning scripts/export-month.js",
     "test": "node --disable-warning=ExperimentalWarning --test"
   },
   "dependencies": {

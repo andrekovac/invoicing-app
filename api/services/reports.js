@@ -163,7 +163,7 @@ function taxPerRate(accountId, year, quarter) {
   if (quarter) {
     var q = Number(quarter);
     from = year + '-' + utils.pad((q - 1) * 3 + 1, 2) + '-01';
-    to = year + '-' + utils.pad(q * 3, 2) + '-31';
+    to = year + '-' + utils.pad(q * 3, 2) + '-' + new Date(year, q * 3, 0).getDate();
   }
   var rows = conn().prepare("SELECT tax_rate, count(*) AS n, sum(total_net) AS net, sum(total_tax) AS tax, sum(total_gross) AS gross FROM invoices " +
     "WHERE account_id = ? AND status IN ('issued', 'paid') AND issue_date BETWEEN ? AND ? GROUP BY tax_rate ORDER BY tax_rate DESC")

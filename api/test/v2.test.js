@@ -108,3 +108,29 @@ test('unknown v2 route', async function () {
   assert.strictEqual(res.status, 404);
   assert.ok(Array.isArray(res.body.errors));
 });
+
+test('products as a page, camelCase', async function () {
+  const res = await api.get('/api/v2/products?perPage=3');
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.body.data.length, 3);
+  const p = res.body.data[0];
+  assert.ok('netPrice' in p);
+  assert.ok('taxRate' in p);
+  assert.strictEqual(p.active, true);
+});
+
+test('revenue per month matches v1', async function () {
+  const v2 = await api.get('/api/v2/reports/revenue?year=2021');
+  const v1 = await api.get('/api/v1/reports/revenue?year=2021');
+  assert.strictEqual(v2.status, 200);
+  assert.strictEqual(v2.body.months.length, 12);
+  assert.strictEqual(v2.body.total.gross, v1.body.total.gross);
+  assert.strictEqual(v2.body.total.received, v1.body.total.paid);
+  assert.strictEqual(v2.body.total.invoices, v1.body.total.count);
+});
+
+test('revenue: wrong year', async function () {
+  const res = await api.get('/api/v2/reports/revenue?year=99');
+  assert.strictEqual(res.status, 400);
+  assert.strictEqual(res.body.errors[0].field, 'year');
+});

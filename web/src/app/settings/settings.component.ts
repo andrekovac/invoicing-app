@@ -13,6 +13,7 @@ export class SettingsComponent implements OnInit {
   users: any[] = [];
   outbox: any[] = [];
   imports: any[] = [];
+  flags: any[] = [];
   openMail: any = null;
   me: any = getUser();
   newUser = { name: '', email: '', password: '' };
@@ -22,12 +23,26 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     get('/admin/account').then((a: any) => this.account = a).catch((err: any) => this.error = err.message);
     this.loadUsers();
+    this.loadFlags();
     get('/admin/imports').then((rows: any) => this.imports = rows).catch(() => { /* not admin */ });
     get('/admin/outbox?limit=50').then((rows: any) => this.outbox = rows).catch(() => { /* not admin */ });
   }
 
   loadUsers(): void {
     get('/admin/users').then((rows: any) => this.users = rows).catch(() => { /* not admin */ });
+  }
+
+  loadFlags(): void {
+    get('/admin/flags').then((rows: any) => this.flags = rows).catch(() => { /* not admin */ });
+  }
+
+  setFlag(f: any, enabled: boolean): void {
+    put('/admin/flags/' + f.name, { enabled: enabled }).then(() => this.loadFlags()).catch((err: any) => this.error = err.message);
+  }
+
+  resetFlag(f: any, ev: Event): void {
+    ev.preventDefault();
+    put('/admin/flags/' + f.name, { enabled: null }).then(() => this.loadFlags()).catch((err: any) => this.error = err.message);
   }
 
   saveAccount(): void {
