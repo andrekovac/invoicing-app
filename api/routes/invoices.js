@@ -16,6 +16,7 @@ const validate = require('../lib/validate');
 const flags = require('../lib/flags');
 const recurring = require('../services/recurring');
 const csv = require('../lib/csv');
+const attachments = require('../services/attachments');
 
 const router = express.Router();
 
@@ -589,6 +590,102 @@ router.get('/:id/credit-notes', function (req, res) {
     .filter(function (e) { return e.type === 'credit_note' && e.data && e.data.number; })
     .map(function (e) { return e.data.number; });
   res.json(numbers.map(function (n) { return invoices.findByNumber(req.accountId, n); }).filter(Boolean));
+});
+
+// ---- attachments (Anhänge) ----
+// GET    /:id/attachments              list, without the files
+// POST   /:id/attachments              { filename, data (base64), kind? }
+// GET    /:id/attachments/:aid         the file (?download=1 as attachment)
+// PUT    /:id/attachments/:aid         { filename?, kind? }
+// DELETE /:id/attachments/:aid
+// works for every status: the delivery note often comes after the invoice went out
+function ownAttachment(req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return null;
+  var att = attachments.findById(Number(req.params.aid));
+  if (!att || att.invoice_id !== inv.id) {
+    res.status(404).json({ error: 'Anhang nicht gefunden' });
+    return null;
+  }
+  return { inv: inv, att: att };
+}
+
+function decodeBase64(s) {
+  if (typeof s !== 'string' || !s) return null;
+  // data urls from the browser: data:application/pdf;base64,....
+  var comma = s.indexOf(',');
+  if (s.slice(0, 5) === 'data:' && comma !== -1) s = s.slice(comma + 1);
+  s = s.replace(/\s/g, '');
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(s)) return null;
+  return Buffer.from(s, 'base64');
+}
+
+router.get('/:id/attachments', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  res.json(attachments.list(inv.id));
+});
+
+router.post('/:id/attachments', function (req, res, next) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var body = req.body || {};
+  var filename = attachments.cleanName(body.filename);
+  if (!filename) return res.status(400).json({ error: 'Dateiname fehlt' });
+  var mime = attachments.mimeFor(filename);
+  if (!mime) return res.status(400).json({ error: 'nur PDF, PNG, JPG, TXT oder CSV' });
+  var kind = body.kind || 'other';
+  if (attachments.KINDS.indexOf(kind) === -1) return res.status(400).json({ error: 'Art ungültig' });
+  var data = decodeBase64(body.data);
+  if (!data || !data.length) return res.status(400).json({ error: 'Datei fehlt oder ist kein base64' });
+  if (data.length > attachments.MAX_SIZE) return res.status(413).json({ error: 'Datei zu groß (höchstens 700 KB)' });
+  if (mime === 'application/pdf' && data.slice(0, 5).toString('latin1') !== '%PDF-') {
+    return res.status(400).json({ error: 'Datei ist kein PDF' });
+  }
+  if (attachments.countFor(inv.id) >= attachments.MAX_PER_INVOICE) {
+    return res.status(409).json({ error: 'höchstens ' + attachments.MAX_PER_INVOICE + ' Anhänge pro Rechnung' });
+  }
+  var same = attachments.findSame(inv.id, data);
+  if (same) return res.status(200).json(attachments.findById(same.id));
+  try {
+    var att = attachments.add(inv, { filename: filename, mime: mime, kind: kind, data: data }, req.user.id);
+    db.open().prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+      .run(inv.id, inv.account_id, 'attachment', JSON.stringify({ filename: filename, size: att.size }), req.user.id);
+    res.status(201).json(att);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/attachments/:aid', function (req, res) {
+  var own = ownAttachment(req, res);
+  if (!own) return;
+  var file = attachments.content(own.att.id);
+  res.setHeader('Content-Type', file.mime);
+  res.setHeader('Content-Length', String(file.size));
+  res.setHeader('Content-Disposition', (req.query.download ? 'attachment' : 'inline') + '; filename="' + file.filename + '"');
+  res.send(Buffer.from(file.data));
+});
+
+router.put('/:id/attachments/:aid', function (req, res) {
+  var own = ownAttachment(req, res);
+  if (!own) return;
+  var body = req.body || {};
+  var filename = body.filename !== undefined ? attachments.cleanName(body.filename) : null;
+  if (body.filename !== undefined && !filename) return res.status(400).json({ error: 'Dateiname fehlt' });
+  // the type comes from the ending, so the ending stays
+  if (filename && attachments.mimeFor(filename) !== own.att.mime) return res.status(400).json({ error: 'Dateiendung darf sich nicht ändern' });
+  if (body.kind !== undefined && attachments.KINDS.indexOf(body.kind) === -1) return res.status(400).json({ error: 'Art ungültig' });
+  res.json(attachments.rename(own.att.id, filename, body.kind));
+});
+
+router.delete('/:id/attachments/:aid', function (req, res) {
+  var own = ownAttachment(req, res);
+  if (!own) return;
+  attachments.remove(own.att.id);
+  db.open().prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+    .run(own.inv.id, own.inv.account_id, 'attachment_removed', JSON.stringify({ filename: own.att.filename }), req.user.id);
+  res.status(204).end();
 });
 
 // text for the mail to the customer (the pdf is attached by hand)
