@@ -26,6 +26,8 @@ interface ViewInvoice {
   total_tax: number;
   total_gross: number;
   note: string | null;
+  sent_at: string | null;
+  sent_via: string | null;
   items: ViewItem[];
   customer: { id: number; name: string; contact_name?: string; street?: string; zip?: string; city?: string; country?: string; email?: string; vat_id?: string };
 }
@@ -55,7 +57,16 @@ const EVENT_TEXT: { [k: string]: string } = {
   note: 'Notiz geändert',
   status: 'Status geändert',
   reminder: 'Erinnerung gesendet',
-  credit_note: 'Gutschrift'
+  credit_note: 'Gutschrift',
+  sent: 'versendet',
+  sent_removed: 'Versand zurückgenommen'
+};
+
+const SENT_VIA_TEXT: { [k: string]: string } = {
+  mail: 'per E-Mail',
+  post: 'per Post',
+  portal: 'im Kundenportal',
+  other: ''
 };
 
 // read only page of one invoice. the amounts are the stored ones (what the customer got),
@@ -86,6 +97,7 @@ const EVENT_TEXT: { [k: string]: string } = {
           <div>Datum: {{ inv.issue_date | dateDe }}</div>
           <div [class.overdue]="overdue()">Fällig: {{ inv.due_date | dateDe }}</div>
           <div *ngIf="inv.paid_at">Bezahlt am: {{ inv.paid_at | dateDe }}</div>
+          <div *ngIf="inv.sent_at">Versendet: {{ inv.sent_at | dateDe }} {{ sentVia(inv.sent_via) }}</div>
           <div *ngIf="inv.customer.vat_id">USt-IdNr.: {{ inv.customer.vat_id }}</div>
         </div>
       </div>
@@ -150,6 +162,7 @@ const EVENT_TEXT: { [k: string]: string } = {
       <div class="toolbar" style="margin-top: 16px;">
         <button class="secondary" (click)="back()">Zurück zur Liste</button>
         <button class="secondary" *ngIf="inv.status === 'issued'" (click)="copyPayLink()">Zahlungslink kopieren</button>
+        <button class="secondary" *ngIf="inv.status === 'issued' && !inv.sent_at" (click)="markSent()">Per Post versendet</button>
         <button class="secondary" *ngIf="inv.status !== 'cancelled' && inv.total_gross >= 0" (click)="makeRecurring()">Als Serienrechnung</button>
         <button class="danger" *ngIf="(inv.status === 'issued' || inv.status === 'paid') && inv.total_gross > 0" (click)="creditNote()">Gutschrift erstellen</button>
         <span class="ok" *ngIf="info()">{{ info() }}</span>
@@ -215,7 +228,20 @@ export class InvoiceViewComponent implements OnInit {
     if (e.type === 'created' && e.data && e.data.recurring_from) text += ' (Serienrechnung)';
     if (e.type === 'created' && e.data && e.data.credit_for) text += ' als Gutschrift zu ' + e.data.credit_for;
     if (e.type === 'credit_note' && e.data) text += ' ' + e.data.number + ' über ' + String(e.data.amount).replace('.', ',') + ' €';
+    if (e.type === 'sent' && e.data) text += ' ' + this.sentVia(e.data.via);
     return text;
+  }
+
+  sentVia(via: string | null): string {
+    return via ? SENT_VIA_TEXT[via] || '' : '';
+  }
+
+  markSent(): void {
+    const inv = this.invoice();
+    if (!inv) return;
+    sendJson<ViewInvoice>('POST', '/api/v1/invoices/' + inv.id + '/sent', { via: 'post' })
+      .then(() => this.load(inv.id))
+      .catch(err => this.error.set(err.message));
   }
 
   copyPayLink(): void {

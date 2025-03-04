@@ -171,10 +171,10 @@ router.post('/preview', function (req, res) {
 });
 
 // several invoices at once, from the list (checkboxes):
-//   POST /bulk { action: 'issue' | 'paid' | 'cancel' | 'remind', ids: [1, 2, 3], paid_at? }
+//   POST /bulk { action: 'issue' | 'paid' | 'cancel' | 'remind' | 'mail' | 'sent', ids: [1, 2, 3], paid_at?, via?, sent_at? }
 // every invoice on its own, one failing does not stop the others.
 // answer: { done: 2, failed: 1, results: [{ id, ok, error?, number? }] }
-var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind', 'mail'];
+var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind', 'mail', 'sent'];
 var BULK_MAX = 100;
 
 function bulkOne(req, action, id) {
@@ -224,6 +224,14 @@ function bulkOne(req, action, id) {
           account: acc.name
         }
       });
+      if (!inv.sent_at) markSent(inv, 'mail', utils.today(), req.user.id);
+      return { id: id, ok: true, number: inv.number };
+    }
+    case 'sent': {
+      if (inv.status !== 'issued' && inv.status !== 'paid') return { id: id, ok: false, error: 'nur gestellte Rechnungen' };
+      if (inv.sent_at) return { id: id, ok: true, number: inv.number, sent_at: inv.sent_at };
+      var via = SENT_VIA.indexOf(req.body.via) !== -1 ? req.body.via : 'post';
+      markSent(inv, via, req.body.sent_at || utils.today(), req.user.id);
       return { id: id, ok: true, number: inv.number };
     }
   }
@@ -235,6 +243,7 @@ router.post('/bulk', function (req, res, next) {
   if (!Array.isArray(body.ids) || !body.ids.length) return res.status(400).json({ error: 'keine Rechnungen gewählt' });
   if (body.ids.length > BULK_MAX) return res.status(400).json({ error: 'höchstens ' + BULK_MAX + ' Rechnungen auf einmal' });
   if (body.paid_at && !utils.isDate(body.paid_at)) return res.status(400).json({ error: 'Datum ungültig' });
+  if (body.sent_at && !utils.isDate(body.sent_at)) return res.status(400).json({ error: 'Datum ungültig' });
   var ids = [];
   for (var i = 0; i < body.ids.length; i++) {
     var n = validate.int(body.ids[i], { min: 1 });
@@ -376,6 +385,53 @@ router.delete('/recurring/:rid', function (req, res) {
   if (!rec) return;
   recurring.remove(rec.id);
   res.status(204).end();
+});
+
+// ---- sent to the customer (versendet) ----
+// the office prints some invoices and sends them by post, others go out with their own
+// mail program. POST /:id/sent { via: 'mail' | 'post' | 'portal' | 'other', sent_at? }
+var SENT_VIA = ['mail', 'post', 'portal', 'other'];
+
+function markSent(inv, via, sentAt, userId) {
+  var c = db.open();
+  c.prepare('UPDATE invoices SET sent_at = ?, sent_via = ? WHERE id = ?').run(sentAt, via, inv.id);
+  c.prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+    .run(inv.id, inv.account_id, 'sent', JSON.stringify({ via: via, sent_at: sentAt }), userId || null);
+}
+
+router.post('/:id/sent', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  if (inv.status === 'draft') return res.status(409).json({ error: 'Entwürfe erst stellen, dann versenden' });
+  if (inv.status === 'cancelled') return res.status(409).json({ error: 'Rechnung ist storniert' });
+  var body = req.body || {};
+  var via = body.via || 'post';
+  if (SENT_VIA.indexOf(via) === -1) return res.status(400).json({ error: 'Versandart ungültig' });
+  var sentAt = body.sent_at || utils.today();
+  if (!utils.isDate(sentAt)) return res.status(400).json({ error: 'Datum ungültig' });
+  if (sentAt > utils.today()) return res.status(400).json({ error: 'Datum liegt in der Zukunft' });
+  if (inv.issue_date && sentAt < inv.issue_date) return res.status(400).json({ error: 'Datum vor dem Rechnungsdatum' });
+  markSent(inv, via, sentAt, req.user.id);
+  res.json(invoices.getById(inv.id));
+});
+
+// wrong click: not sent after all
+router.delete('/:id/sent', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  if (!inv.sent_at) return res.status(409).json({ error: 'Rechnung ist nicht als versendet markiert' });
+  var c = db.open();
+  c.prepare('UPDATE invoices SET sent_at = NULL, sent_via = NULL WHERE id = ?').run(inv.id);
+  c.prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+    .run(inv.id, inv.account_id, 'sent_removed', JSON.stringify({ was: inv.sent_at }), req.user.id);
+  res.json(invoices.getById(inv.id));
+});
+
+// issued, but not sent yet: for the "still to send" box on the start page
+router.get('/not-sent', function (req, res) {
+  res.json(db.open().prepare("SELECT i.id, i.number, i.issue_date, i.total_gross, c.name AS customer_name, c.email AS customer_email FROM invoices i " +
+    "JOIN customers c ON c.id = i.customer_id WHERE i.account_id = ? AND i.status = 'issued' AND i.sent_at IS NULL " +
+    "AND i.issue_date >= ? ORDER BY i.issue_date, i.id").all(req.accountId, utils.addDays(utils.today(), -60)));
 });
 
 // lookup by number, e.g. from the bank statement
@@ -750,6 +806,7 @@ router.post('/:id/mail', function (req, res) {
       account: account.name
     }
   });
+  if (!inv.sent_at) markSent(inv, 'mail', utils.today(), req.user.id);
   res.status(201).json(mail);
 });
 
