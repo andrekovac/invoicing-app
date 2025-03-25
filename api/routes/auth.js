@@ -31,6 +31,17 @@ router.post('/login', function (req, res, next) {
     db.open().prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id);
     session.set(res, { uid: user.id });
     res.json(auth.publicUser(user));
+    // old scrypt hash: replace it now that we have the password. the login does not wait for it
+    if (auth.needsRehash(user.password_hash)) {
+      auth.hashPassword(password, function (err2, hash) {
+        if (err2) return;
+        try {
+          db.open().prepare('UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?').run(hash, user.id, user.password_hash);
+        } catch (e) {
+          // next login tries again
+        }
+      });
+    }
   });
 });
 

@@ -2,6 +2,8 @@
 // 127.0.0.1 (the urls use 127.0.0.1, a server on :: could share the port number with another one),
 // a small fetch wrapper that keeps the session cookie per client
 process.env.APP_DB_FILE = ':memory:';
+// bcrypt with the default 10 rounds costs about 60 ms per login in plain js
+process.env.BCRYPT_ROUNDS = process.env.BCRYPT_ROUNDS || '4';
 
 const db = require('../db');
 

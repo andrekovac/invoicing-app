@@ -1,24 +1,33 @@
-// password hashing (scrypt) and the login middlewares
+// password hashing and the login middlewares.
+// new passwords: bcrypt ($2b$...). the scrypt hashes from before 2025 (scrypt$salt$hex) still
+// work and are replaced with a bcrypt hash at the next login (see routes/auth.js)
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const db = require('../db');
 
 const KEYLEN = 64;
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 
 function hashPassword(password, cb) {
-  var salt = crypto.randomBytes(16).toString('hex');
-  crypto.scrypt(password, salt, KEYLEN, function (err, key) {
-    if (err) return cb(err);
-    cb(null, 'scrypt$' + salt + '$' + key.toString('hex'));
-  });
+  bcrypt.hash(String(password), BCRYPT_ROUNDS, cb);
 }
 
-// for the seed script
+// for the seed script. stays scrypt: bcrypt in plain js makes the seed (and every test) slow
 function hashPasswordSync(password) {
   var salt = crypto.randomBytes(16).toString('hex');
   return 'scrypt$' + salt + '$' + crypto.scryptSync(password, salt, KEYLEN).toString('hex');
 }
 
+function isBcrypt(stored) {
+  return /^\$2[aby]\$\d\d\$/.test(String(stored || ''));
+}
+
+function needsRehash(stored) {
+  return !isBcrypt(stored);
+}
+
 function verifyPassword(password, stored, cb) {
+  if (isBcrypt(stored)) return bcrypt.compare(String(password), stored, cb);
   var parts = String(stored || '').split('$');
   if (parts.length !== 3 || parts[0] !== 'scrypt') return cb(null, false);
   crypto.scrypt(password, parts[1], KEYLEN, function (err, key) {
@@ -87,6 +96,8 @@ module.exports = {
   hashPassword: hashPassword,
   hashPasswordSync: hashPasswordSync,
   verifyPassword: verifyPassword,
+  isBcrypt: isBcrypt,
+  needsRehash: needsRehash,
   publicUser: publicUser,
   recordLogin: recordLogin,
   failedLogins: failedLogins,
