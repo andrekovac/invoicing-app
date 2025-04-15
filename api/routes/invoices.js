@@ -458,6 +458,70 @@ router.get('/:id/events', function (req, res) {
   res.json(invoices.events(inv.id));
 });
 
+// everything about one invoice in one list, newest first: history, payments, mails,
+// card attempts (also the failed ones), attachments. for the "Verlauf" tab and for support
+//   GET /:id/timeline?kinds=event,payment,mail,card,attachment
+var TIMELINE_KINDS = ['event', 'payment', 'mail', 'card', 'attachment'];
+
+function sqlDate(s) {
+  // events and mails have 'YYYY-MM-DD HH:MM:SS', payments only the day
+  return s && s.length === 10 ? s + ' 00:00:00' : s;
+}
+
+router.get('/:id/timeline', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  var kinds = TIMELINE_KINDS;
+  if (req.query.kinds) {
+    kinds = String(req.query.kinds).split(',').map(function (k) { return k.trim(); }).filter(Boolean);
+    var wrong = kinds.filter(function (k) { return TIMELINE_KINDS.indexOf(k) === -1; });
+    if (wrong.length) return res.status(400).json({ errors: wrong.map(function (k) { return { field: 'kinds', message: 'unbekannt: ' + k }; }) });
+  }
+  var c = db.open();
+  var out = [];
+  if (kinds.indexOf('event') !== -1) {
+    invoices.events(inv.id).forEach(function (e) {
+      out.push({ at: e.created_at, kind: 'event', type: e.type, user_name: e.user_name, data: e.data });
+    });
+  }
+  if (kinds.indexOf('payment') !== -1) {
+    c.prepare('SELECT p.*, u.name AS user_name FROM payments p LEFT JOIN users u ON u.id = p.created_by WHERE p.invoice_id = ? ORDER BY p.id')
+      .all(inv.id).forEach(function (p) {
+        out.push({ at: sqlDate(p.paid_at), kind: 'payment', type: p.method, user_name: p.user_name || null,
+          data: { amount: p.amount, reference: p.reference, booked_at: p.created_at } });
+      });
+  }
+  if (kinds.indexOf('mail') !== -1) {
+    c.prepare('SELECT id, template, to_email, subject, created_at, sent_at FROM outbox WHERE invoice_id = ? ORDER BY id')
+      .all(inv.id).forEach(function (m) {
+        out.push({ at: m.created_at, kind: 'mail', type: m.template, user_name: null,
+          data: { to: m.to_email, subject: m.subject, sent_at: m.sent_at } });
+      });
+  }
+  if (kinds.indexOf('card') !== -1) {
+    // invoice_ids is "12,13,14" (portal pays several at once)
+    c.prepare("SELECT * FROM card_attempts WHERE account_id = ? AND (',' || invoice_ids || ',') LIKE ? ORDER BY id")
+      .all(inv.account_id, '%,' + inv.id + ',%').forEach(function (a) {
+        out.push({ at: a.created_at, kind: 'card', type: a.status, user_name: null,
+          data: { amount: a.amount, error: a.error, invoices: a.invoice_ids.split(',').length } });
+      });
+  }
+  if (kinds.indexOf('attachment') !== -1) {
+    attachments.list(inv.id).forEach(function (a) {
+      out.push({ at: a.created_at, kind: 'attachment', type: a.kind, user_name: a.uploaded_by_name || null,
+        data: { id: a.id, filename: a.filename, size: a.size } });
+    });
+  }
+  out.sort(function (a, b) {
+    if (a.at === b.at) return 0;
+    return a.at < b.at ? 1 : -1;
+  });
+  var limit = validate.int(req.query.limit, { min: 1, max: 500, def: 200 });
+  if (isNaN(limit)) return res.status(400).json({ errors: [{ field: 'limit', message: '1 bis 500' }] });
+  res.setHeader('X-Total-Count', String(out.length));
+  res.json(out.slice(0, limit));
+});
+
 router.post('/', function (req, res) {
   var body = req.body || {};
   var cust = body.customer_id && customers.findById(Number(body.customer_id));

@@ -77,3 +77,18 @@ test('other account sees nothing', async function () {
   const res = await other.get('/api/v1/invoices/' + invoiceId + '/attachments');
   assert.strictEqual(res.status, 404);
 });
+
+test('timeline has the history, the attachments and the payments', async function () {
+  const all = await api.get('/api/v1/invoices/' + invoiceId + '/timeline');
+  assert.strictEqual(all.status, 200);
+  const kinds = all.body.map(function (e) { return e.kind; });
+  assert.ok(kinds.indexOf('event') !== -1);
+  assert.ok(kinds.indexOf('attachment') !== -1);
+  for (let i = 1; i < all.body.length; i++) assert.ok(all.body[i - 1].at >= all.body[i].at);
+
+  const only = await api.get('/api/v1/invoices/' + invoiceId + '/timeline?kinds=attachment');
+  only.body.forEach(function (e) { assert.strictEqual(e.kind, 'attachment'); });
+  const wrong = await api.get('/api/v1/invoices/' + invoiceId + '/timeline?kinds=telefon');
+  assert.strictEqual(wrong.status, 400);
+  assert.strictEqual(wrong.body.errors[0].field, 'kinds');
+});

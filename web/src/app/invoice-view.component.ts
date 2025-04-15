@@ -40,6 +40,14 @@ interface PaymentRow {
   reference: string | null;
 }
 
+interface AttachmentRow {
+  id: number;
+  filename: string;
+  size: number;
+  kind: string;
+  created_at: string;
+}
+
 interface EventRow {
   id: number;
   type: string;
@@ -59,7 +67,9 @@ const EVENT_TEXT: { [k: string]: string } = {
   reminder: 'Erinnerung gesendet',
   credit_note: 'Gutschrift',
   sent: 'versendet',
-  sent_removed: 'Versand zurückgenommen'
+  sent_removed: 'Versand zurückgenommen',
+  attachment: 'Anhang hinzugefügt',
+  attachment_removed: 'Anhang entfernt'
 };
 
 const SENT_VIA_TEXT: { [k: string]: string } = {
@@ -159,6 +169,22 @@ const SENT_VIA_TEXT: { [k: string]: string } = {
         </div>
       </div>
 
+      <h2 style="margin-top: 16px;">Anhänge</h2>
+      <table>
+        <tbody>
+          <tr *ngFor="let a of attachments()">
+            <td><a [href]="attachmentUrl(a)" target="_blank">{{ a.filename }}</a></td>
+            <td class="muted">{{ kindText(a.kind) }}</td>
+            <td class="num muted">{{ kb(a.size) }}</td>
+            <td class="num"><button class="secondary" (click)="removeAttachment(a)">Entfernen</button></td>
+          </tr>
+          <tr *ngIf="!attachments().length"><td class="muted">Keine Anhänge</td></tr>
+        </tbody>
+      </table>
+      <label class="muted">Datei anhängen (PDF, Bild, Text, höchstens 700 KB)
+        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.txt,.csv" (change)="upload($event)">
+      </label>
+
       <div class="toolbar" style="margin-top: 16px;">
         <button class="secondary" (click)="back()">Zurück zur Liste</button>
         <button class="secondary" *ngIf="inv.status === 'issued'" (click)="copyPayLink()">Zahlungslink kopieren</button>
@@ -174,6 +200,7 @@ export class InvoiceViewComponent implements OnInit {
   invoice = signal<ViewInvoice | null>(null);
   payments = signal<PaymentRow[]>([]);
   events = signal<EventRow[]>([]);
+  attachments = signal<AttachmentRow[]>([]);
   error = signal('');
   info = signal('');
 
@@ -206,6 +233,44 @@ export class InvoiceViewComponent implements OnInit {
     getJson<EventRow[]>('/api/v1/invoices/' + id + '/events')
       .then(rows => this.events.set(rows))
       .catch(() => this.events.set([]));
+    getJson<AttachmentRow[]>('/api/v1/invoices/' + id + '/attachments')
+      .then(rows => this.attachments.set(rows))
+      .catch(() => this.attachments.set([]));
+  }
+
+  attachmentUrl(a: AttachmentRow): string {
+    return this.pdfUrl().replace(/\/pdf$/, '/attachments/' + a.id);
+  }
+
+  kindText(kind: string): string {
+    return ({ delivery_note: 'Lieferschein', order: 'Bestellung', offer: 'Angebot' } as any)[kind] || '';
+  }
+
+  kb(size: number): string {
+    return Math.max(1, Math.round(size / 1024)) + ' KB';
+  }
+
+  upload(ev: Event): void {
+    const inv = this.invoice();
+    const input = ev.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    if (!inv || !file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const kind = /liefer/i.test(file.name) ? 'delivery_note' : /bestell/i.test(file.name) ? 'order' : 'other';
+      sendJson<AttachmentRow>('POST', '/api/v1/invoices/' + inv.id + '/attachments', { filename: file.name, data: reader.result, kind })
+        .then(() => { input.value = ''; this.load(inv.id); })
+        .catch(err => this.error.set(err.message));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeAttachment(a: AttachmentRow): void {
+    const inv = this.invoice();
+    if (!inv || !confirm(a.filename + ' entfernen?')) return;
+    sendJson('DELETE', '/api/v1/invoices/' + inv.id + '/attachments/' + a.id)
+      .then(() => this.load(inv.id))
+      .catch(err => this.error.set(err.message));
   }
 
   pdfUrl(): string {
