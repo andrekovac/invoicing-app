@@ -911,6 +911,61 @@ router.post('/:id/items', function (req, res) {
   res.status(201).json(invoices.addItem(inv.id, it));
 });
 
+// positions pasted from a spreadsheet (Excel, LibreOffice) into a draft:
+//   POST /:id/items/paste { text: "Flyer A5\t2\t69,90\nVersand\t1\t12,50", replace?: false }
+// one line per position: description, quantity, unit price (tab or ;). a first line with
+// "Beschreibung" / "Menge" is skipped. answer: the invoice, or { errors: [{ line, message }] }
+var PASTE_MAX_LINES = 200;
+
+function pasteNumber(s) {
+  s = String(s || '').trim().replace(/\s*€$/, '').replace(/\s/g, '');
+  if (!s) return NaN;
+  // 1.234,56 (German) or 1234.56
+  if (s.indexOf(',') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+
+function parsePasted(text) {
+  var lines = String(text || '').split(/\r?\n/).filter(function (l) { return l.trim(); });
+  var items = [];
+  var errors = [];
+  lines.forEach(function (line, i) {
+    var cols = line.indexOf('\t') !== -1 ? line.split('\t') : line.split(';');
+    if (i === 0 && /beschreibung|bezeichnung|menge/i.test(line)) return;
+    if (cols.length < 3) return errors.push({ line: i + 1, message: 'drei Spalten erwartet: Beschreibung, Menge, Preis' });
+    var description = cols[0].trim();
+    var quantity = pasteNumber(cols[1]);
+    var price = pasteNumber(cols[2]);
+    if (!description) return errors.push({ line: i + 1, message: 'Beschreibung fehlt' });
+    if (description.length > 500) return errors.push({ line: i + 1, message: 'Beschreibung zu lang' });
+    if (isNaN(quantity) || quantity <= 0 || quantity > 99999) return errors.push({ line: i + 1, message: 'Menge ungültig' });
+    if (isNaN(price) || price < 0 || price > 250000) return errors.push({ line: i + 1, message: 'Preis ungültig' });
+    items.push({ description: description, quantity: quantity, unit_price: price });
+  });
+  return { items: items, errors: errors };
+}
+
+router.post('/:id/items/paste', function (req, res, next) {
+  var inv = draftOr409(req, res);
+  if (!inv) return;
+  var body = req.body || {};
+  if (!body.text || !String(body.text).trim()) return res.status(400).json({ errors: [{ line: 0, message: 'nichts eingefügt' }] });
+  var parsed = parsePasted(body.text);
+  if (parsed.errors.length) return res.status(400).json({ errors: parsed.errors });
+  if (!parsed.items.length) return res.status(400).json({ errors: [{ line: 0, message: 'keine Positionen gefunden' }] });
+  var keep = body.replace ? [] : invoices.itemsFor(inv.id).map(function (it) {
+    return { description: it.description, quantity: it.quantity, unit_price: it.unit_price };
+  });
+  if (keep.length + parsed.items.length > PASTE_MAX_LINES) {
+    return res.status(400).json({ errors: [{ line: 0, message: 'höchstens ' + PASTE_MAX_LINES + ' Positionen' }] });
+  }
+  try {
+    res.json(invoices.update(inv.id, { items: keep.concat(parsed.items) }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.put('/:id/items/:itemId', function (req, res) {
   var inv = draftOr409(req, res);
   if (!inv) return;
@@ -936,6 +991,25 @@ router.put('/:id/note', function (req, res) {
   var note = req.body && req.body.note;
   if (note && String(note).length > 2000) return res.status(400).json({ error: 'Notiz zu lang' });
   res.json(invoices.setNote(id, note));
+});
+
+// payment extension (Zahlungsaufschub): new due date for an issued invoice, with a reason.
+// a reminder already sent stays in the history, the job only looks at the new date
+router.put('/:id/due-date', function (req, res) {
+  var inv = ownInvoice(req, res);
+  if (!inv) return;
+  if (inv.status !== 'issued') return res.status(409).json({ error: 'nur bei offenen Rechnungen' });
+  var body = req.body || {};
+  if (!utils.isDate(body.due_date)) return res.status(400).json({ error: 'Datum ungültig' });
+  if (inv.issue_date && body.due_date < inv.issue_date) return res.status(400).json({ error: 'Fällig vor dem Rechnungsdatum' });
+  if (body.due_date > utils.addDays(inv.issue_date || utils.today(), 365)) return res.status(400).json({ error: 'höchstens ein Jahr nach dem Rechnungsdatum' });
+  var reason = String(body.reason || '').trim();
+  if (reason.length > 300) return res.status(400).json({ error: 'Grund zu lang' });
+  if (body.due_date === inv.due_date) return res.json(invoices.getById(inv.id));
+  var updated = invoices.update(inv.id, { due_date: body.due_date });
+  db.open().prepare('INSERT INTO invoice_events (invoice_id, account_id, type, data, user_id) VALUES (?, ?, ?, ?, ?)')
+    .run(inv.id, inv.account_id, 'due_date', JSON.stringify({ from: inv.due_date, to: body.due_date, reason: reason || null }), req.user.id);
+  res.json(updated);
 });
 
 router.post('/:id/cancel', function (req, res) {
