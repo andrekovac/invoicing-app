@@ -110,7 +110,7 @@ var ALBERS_2022_INVOICES = [
   ['Verlag Sonnenblick', '2022-07-11', 'issued', 7, [['Buch "Fränkische Küche", 2. Auflage', 800, 8.95], ['Lesebändchen', 800, 0.12]], { note: 'Bücher 7 %, Lieferung in zwei Teilen' }],
   ['Buchbinderei Gruber', '2022-09-05', 'issued', 19, [['Vorsatzpapier bedruckt', 600, 0.55], ['Andruck', 1, 85]], { note: 'Zahlt immer spät, Mahnung sofort raus' }],
   ['Fotostudio Licht', '2022-09-26', 'paid', 19, [['Fotobuch Hardcover 30x30', 12, 48.5]]],
-  ['Krause GmbH', '2022-10-10', 'issued', 19, [['Messeflyer A5 4/4 (je 1000 St.)', 4, 69.9], ['Rollup 85x200 inkl. Kassette', 1, 92]]],
+  ['Weingut Hartmann', '2022-10-10', 'issued', 19, [['Messeflyer A5 4/4 (je 1000 St.)', 4, 69.9], ['Rollup 85x200 inkl. Kassette', 1, 92]]],
   ['=Huber & Co', '2022-10-17', 'draft', 19, [['Kalender 2023 A3', 100, 7.2]]]
 ];
 

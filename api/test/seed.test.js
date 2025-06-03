@@ -40,7 +40,7 @@ test('Krause GmbH has the new address from 2023', function () {
 test('Krause invoices were saved once with the new address', function () {
   const krause = customers.list(2, 'Krause')[0];
   const list = invoices.list(2, { customer_id: krause.id });
-  assert.strictEqual(list.length, 7);
+  assert.strictEqual(list.length, 6);
   list.forEach(function (inv) {
     const updated = invoices.events(inv.id).filter(function (e) { return e.type === 'updated'; });
     assert.ok(updated.length >= 1, inv.number);
