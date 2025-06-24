@@ -86,3 +86,13 @@ test('NEW_PDF_LAYOUT changes the text version of the pdf', async function () {
     await admin.put('/api/v1/admin/flags/NEW_PDF_LAYOUT', { enabled: null });
   }
 });
+
+// new layout is not finished (footer missing), see lib/pdf.js invoiceLinesNew
+test.skip('new pdf layout has bank and tax number in the footer', async function () {
+  flags.set(1, 'NEW_PDF_LAYOUT', true);
+  const inv = (await admin.get('/api/v1/invoices?status=issued')).body[0];
+  const txt = await admin.get('/api/v1/invoices/' + inv.id + '/pdf?format=txt');
+  assert.match(txt.body, /IBAN/);
+  assert.match(txt.body, /Steuernummer/);
+  flags.set(1, 'NEW_PDF_LAYOUT', false);
+});
