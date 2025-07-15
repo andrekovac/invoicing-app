@@ -12,7 +12,8 @@
     "dev:web": "npm start -w web",
     "build:web": "npm run build -w web",
     "test": "npm test -w api",
-    "db:reset": "npm run db:reset -w api"
+    "db:reset": "npm run db:reset -w api",
+    "lint": "npm run lint -w api"
   },
   "license": "MIT"
 }

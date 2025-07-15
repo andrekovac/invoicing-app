@@ -13,7 +13,8 @@
     "check:numbers": "node --disable-warning=ExperimentalWarning scripts/check-numbers.js",
     "recurring": "node --disable-warning=ExperimentalWarning scripts/run-recurring.js",
     "export:month": "node --disable-warning=ExperimentalWarning scripts/export-month.js",
-    "test": "node --disable-warning=ExperimentalWarning --test"
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "lint": "node --disable-warning=ExperimentalWarning scripts/lint.js"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",

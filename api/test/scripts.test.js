@@ -35,3 +35,9 @@ test('export of one month writes three files', function () {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('lint finds no errors in the api', function () {
+  const res = require('child_process').spawnSync(process.execPath, ['--disable-warning=ExperimentalWarning', path.join(__dirname, '..', 'scripts', 'lint.js')], { encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, res.stdout);
+  assert.match(res.stdout, /0 errors/);
+});
