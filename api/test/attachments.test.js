@@ -92,3 +92,14 @@ test('timeline has the history, the attachments and the payments', async functio
   assert.strictEqual(wrong.status, 400);
   assert.strictEqual(wrong.body.errors[0].field, 'kinds');
 });
+
+test('file names with umlauts and euro sign', async function () {
+  const data = Buffer.from('Lieferschein').toString('base64');
+  const up = await api.post('/api/v1/invoices/' + invoiceId + '/attachments', { filename: 'Lieferschein Müller 12€.txt', data: data, kind: 'delivery_note' });
+  assert.strictEqual(up.status, 201);
+  const file = await api.get('/api/v1/invoices/' + invoiceId + '/attachments/' + up.body.id + '?download=1');
+  assert.strictEqual(file.status, 200);
+  const cd = file.headers.get('content-disposition');
+  assert.ok(cd.startsWith('attachment; filename="Lieferschein Muller 12_.txt"'), cd);
+  assert.ok(cd.indexOf("filename*=UTF-8''Lieferschein%20M%C3%BCller%2012%E2%82%AC.txt") !== -1, cd);
+});

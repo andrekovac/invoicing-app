@@ -27,4 +27,12 @@ function toInt(v, def) {
   return isNaN(n) ? def : n;
 }
 
-module.exports = { pad: pad, today: today, addDays: addDays, isDate: isDate, toInt: toInt };
+// Content-Disposition with a file name the browsers understand: ascii fallback plus the
+// utf-8 name (Lieferschein Müller.pdf, Angebot 12€.pdf). a raw € in a header throws in node
+function contentDisposition(type, filename) {
+  var name = String(filename || 'datei');
+  var ascii = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  return type + '; filename="' + ascii + '"; filename*=UTF-8\'\'' + encodeURIComponent(name);
+}
+
+module.exports = { pad: pad, today: today, addDays: addDays, isDate: isDate, toInt: toInt, contentDisposition: contentDisposition };

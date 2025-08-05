@@ -783,7 +783,7 @@ router.get('/:id/attachments/:aid', function (req, res) {
   var file = attachments.content(own.att.id);
   res.setHeader('Content-Type', file.mime);
   res.setHeader('Content-Length', String(file.size));
-  res.setHeader('Content-Disposition', (req.query.download ? 'attachment' : 'inline') + '; filename="' + file.filename + '"');
+  res.setHeader('Content-Disposition', utils.contentDisposition(req.query.download ? 'attachment' : 'inline', file.filename));
   res.send(Buffer.from(file.data));
 });
 
