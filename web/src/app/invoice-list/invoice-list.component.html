@@ -30,7 +30,9 @@
   <button class="secondary" [disabled]="busy || !canDo('mail')" (click)="bulk('mail')">Per Mail senden</button>
   <button class="secondary" [disabled]="busy || !canDo('paid')" (click)="bulk('paid')">Bezahlt</button>
   <button class="secondary" [disabled]="busy || !canDo('remind')" (click)="bulk('remind')">Erinnern</button>
+  <button class="secondary" [disabled]="busy || !canDo('sent')" (click)="bulk('sent')">Per Post versendet</button>
   <button class="danger" [disabled]="busy || !canDo('cancel')" (click)="bulk('cancel')">Stornieren</button>
+  <button class="danger" [disabled]="busy || !canDo('delete')" (click)="bulk('delete')">Entwürfe löschen</button>
   <a href="" (click)="selected = []; $event.preventDefault()">Auswahl aufheben</a>
 </div>
 

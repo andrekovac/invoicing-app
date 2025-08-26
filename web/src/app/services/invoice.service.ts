@@ -19,6 +19,8 @@ export interface Invoice {
   total_tax: number;
   total_gross: number;
   note?: string | null;
+  sent_at?: string | null;
+  sent_via?: string | null;
   items?: any[];
   customer?: any;
 }

@@ -72,7 +72,7 @@ test('invoices of another account are not touched', async function () {
 });
 
 test('wrong input', async function () {
-  assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'delete', ids: [1] })).status, 400);
+  assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'archive', ids: [1] })).status, 400);
   assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'issue', ids: [] })).status, 400);
   assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'issue', ids: ['x'] })).status, 400);
   assert.strictEqual((await api.post('/api/v1/invoices/bulk', { action: 'paid', ids: [1], paid_at: '1.8.2023' })).status, 400);
@@ -97,4 +97,17 @@ test('list as csv with the same filter', async function () {
   const lines = res.body.trim().split('\r\n');
   assert.ok(lines[0].indexOf('Nummer;Kunde') !== -1);
   lines.slice(1).forEach(function (l) { assert.ok(l.indexOf(';Bezahlt;') !== -1); });
+});
+
+test('delete drafts, issued ones stay', async function () {
+  const c = helpers.client(srv.base);
+  await c.login('brandt');
+  const customer = (await c.get('/api/v1/customers?q=Weber')).body[0];
+  const a = await c.post('/api/v1/invoices', { customer_id: customer.id, items: [{ description: 'alt', quantity: 1, unit_price: 10 }] });
+  const issued = (await c.get('/api/v1/invoices?status=issued')).body[0];
+  const res = await c.post('/api/v1/invoices/bulk', { action: 'delete', ids: [a.body.id, issued.id] });
+  assert.strictEqual(res.body.done, 1);
+  assert.strictEqual(res.body.failed, 1);
+  assert.strictEqual((await c.get('/api/v1/invoices/' + a.body.id)).status, 404);
+  assert.strictEqual((await c.get('/api/v1/invoices/' + issued.id)).status, 200);
 });

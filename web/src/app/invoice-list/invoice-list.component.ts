@@ -98,11 +98,13 @@ export class InvoiceListComponent implements OnInit {
     if (action === 'paid' || action === 'mail') return rows.some(r => r.status === 'issued');
     if (action === 'remind') return rows.some(r => this.isOverdue(r));
     if (action === 'cancel') return rows.some(r => r.status === 'issued' || r.status === 'draft');
+    if (action === 'sent') return rows.some(r => r.status === 'issued' && !r.sent_at);
+    if (action === 'delete') return rows.some(r => r.status === 'draft');
     return false;
   }
 
   bulk(action: string): void {
-    const texts: { [k: string]: string } = { issue: 'stellen', paid: 'als bezahlt markieren', cancel: 'stornieren', remind: 'erinnern', mail: 'per Mail senden' };
+    const texts: { [k: string]: string } = { issue: 'stellen', paid: 'als bezahlt markieren', cancel: 'stornieren', remind: 'erinnern', mail: 'per Mail senden', sent: 'als per Post versendet markieren', delete: 'löschen (nur Entwürfe)' };
     if (!confirm(this.selected.length + ' Rechnungen ' + texts[action] + '?')) return;
     this.busy = true;
     this.info = '';

@@ -171,10 +171,10 @@ router.post('/preview', function (req, res) {
 });
 
 // several invoices at once, from the list (checkboxes):
-//   POST /bulk { action: 'issue' | 'paid' | 'cancel' | 'remind' | 'mail' | 'sent', ids: [1, 2, 3], paid_at?, via?, sent_at? }
+//   POST /bulk { action: 'issue' | 'paid' | 'cancel' | 'remind' | 'mail' | 'sent' | 'delete', ids: [1, 2, 3], paid_at?, via?, sent_at? }
 // every invoice on its own, one failing does not stop the others.
 // answer: { done: 2, failed: 1, results: [{ id, ok, error?, number? }] }
-var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind', 'mail', 'sent'];
+var BULK_ACTIONS = ['issue', 'paid', 'cancel', 'remind', 'mail', 'sent', 'delete'];
 var BULK_MAX = 100;
 
 function bulkOne(req, action, id) {
@@ -234,6 +234,11 @@ function bulkOne(req, action, id) {
       markSent(inv, via, req.body.sent_at || utils.today(), req.user.id);
       return { id: id, ok: true, number: inv.number };
     }
+    case 'delete':
+      // only drafts, same as DELETE /:id. old drafts pile up from copies and series
+      if (inv.status !== 'draft') return { id: id, ok: false, error: 'nur Entwürfe können gelöscht werden' };
+      invoices.remove(id);
+      return { id: id, ok: true };
   }
 }
 
