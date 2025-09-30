@@ -5,19 +5,25 @@ as the internal tool of Agentur Brandt, since 2021 used by several companies (ac
 
 ## Quickstart
 
-Needs Node.js 24 or newer (uses the built-in `node:sqlite`).
+Needs Node.js 24 or newer (the api uses the built-in `node:sqlite`, nothing to compile).
 
 ```
-npm install
-npm run dev:api
+npm install          # api and web (npm workspaces)
+npm test             # api tests, in-memory db
+npm run dev:api      # api on http://localhost:4730
+npm run dev:web      # web app on http://localhost:4200 (sends /api to 4730)
+npm run db:reset     # throw the db away and fill it with the demo data again
+npm run lint
 ```
 
-Open http://localhost:4730/admin-old/ and log in with `jonas@agentur-brandt.example` /
-`rechnungen` (admin) or `buero@agentur-brandt.example` / `rechnungen`.
+The first `npm run dev:api` creates `api/data/app.db` and fills it with demo data.
 
-The first start creates `api/data/app.db` with demo data. Start over with `npm run db:reset`.
+Demo logins (password `rechnungen` for all):
 
-Tests: `npm test`
+- `jonas@agentur-brandt.example` (admin) and `buero@agentur-brandt.example`: Agentur Brandt
+- `anna@druckerei-albers.example` (admin): Druckerei Albers KG, imported from the old desktop program
+
+Old admin page: http://localhost:4730/admin-old/
 
 ## New web app (Angular)
 
