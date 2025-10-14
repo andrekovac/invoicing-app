@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Rechnungen API v1
-  version: 1.5.0
+  version: 1.6.0
   description: |
     Api of the invoicing app. All amounts are euros as numbers (119.0), dates are
     `YYYY-MM-DD`. Login sets the session cookie `rsid`, every other call sends it.
@@ -262,9 +262,11 @@ paths:
               type: object
               required: [action, ids]
               properties:
-                action: { type: string, enum: [issue, paid, cancel, remind, mail] }
+                action: { type: string, enum: [issue, paid, cancel, remind, mail, sent, delete] }
                 ids: { type: array, items: { type: integer }, maxItems: 100 }
                 paid_at: { type: string, format: date }
+                via: { type: string, enum: [mail, post, portal, other], description: 'for sent, default post' }
+                sent_at: { type: string, format: date }
       responses:
         '200':
           description: Result per invoice
@@ -743,6 +745,175 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '200': { description: List, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/InvoiceListItem' } } } } }
+  /invoices/not-sent:
+    get:
+      tags: [invoices]
+      summary: Issued in the last 60 days and not sent yet
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    number: { type: string }
+                    issue_date: { type: string, format: date }
+                    total_gross: { type: number }
+                    customer_name: { type: string }
+                    customer_email: { type: string, nullable: true }
+  /invoices/{id}/sent:
+    post:
+      tags: [invoices]
+      summary: Mark as sent (by post, own mail program, ...). The invoice mail does it by itself
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                via: { type: string, enum: [mail, post, portal, other], default: post }
+                sent_at: { type: string, format: date, description: 'default today, not in the future' }
+      responses:
+        '200': { description: The invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: draft or cancelled }
+    delete:
+      tags: [invoices]
+      summary: Not sent after all
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: The invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '409': { description: not marked as sent }
+  /invoices/{id}/due-date:
+    put:
+      tags: [invoices]
+      summary: Payment extension for an open invoice (amounts stay)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [due_date]
+              properties:
+                due_date: { type: string, format: date, description: 'not before the issue date, at most one year after it' }
+                reason: { type: string, maxLength: 300 }
+      responses:
+        '200': { description: The invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: not issued }
+  /invoices/{id}/items/paste:
+    post:
+      tags: [invoices]
+      summary: Positions pasted from a spreadsheet (description, quantity, price per line, tab or ;), drafts only
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, example: "Flyer A5\t2\t69,90" }
+                replace: { type: boolean, default: false, description: 'true = instead of the positions so far' }
+      responses:
+        '200': { description: The invoice, content: { application/json: { schema: { $ref: '#/components/schemas/Invoice' } } } }
+        '400': { description: 'Wrong lines, as `{ errors: [{ line, message }] }`' }
+        '409': { description: not a draft }
+  /invoices/{id}/timeline:
+    get:
+      tags: [invoices]
+      summary: History, payments, mails, card attempts and attachments in one list, newest first
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - { name: kinds, in: query, schema: { type: string }, description: 'comma list of event, payment, mail, card, attachment' }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 200 } }
+      responses:
+        '200':
+          description: Entries, `X-Total-Count` = all entries before the limit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    at: { type: string, example: '2025-04-15 10:40:00' }
+                    kind: { type: string, enum: [event, payment, mail, card, attachment] }
+                    type: { type: string, example: issued }
+                    user_name: { type: string, nullable: true }
+                    data: { type: object, nullable: true }
+        '400': { description: 'Unknown kind, as `{ errors: [{ field, message }] }`' }
+  /invoices/{id}/attachments:
+    get:
+      tags: [invoices]
+      summary: Attachments of an invoice (without the files)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: List, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Attachment' } } } } }
+    post:
+      tags: [invoices]
+      summary: Attach a file (PDF, PNG, JPG, TXT, CSV, at most 700 KB, 10 per invoice)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, data]
+              properties:
+                filename: { type: string, example: Lieferschein 4711.pdf }
+                data: { type: string, description: 'base64 or a data url' }
+                kind: { type: string, enum: [delivery_note, order, offer, other], default: other }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Attachment' } } } }
+        '200': { description: 'Same file was there already', content: { application/json: { schema: { $ref: '#/components/schemas/Attachment' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: too many attachments }
+        '413': { description: file too big }
+  /invoices/{id}/attachments/{aid}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - { name: aid, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [invoices]
+      summary: The file (`?download=1` as download)
+      responses:
+        '200': { description: File, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [invoices]
+      summary: New name (same ending) or kind
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filename: { type: string }
+                kind: { type: string, enum: [delivery_note, order, offer, other] }
+      responses:
+        '200': { description: Changed, content: { application/json: { schema: { $ref: '#/components/schemas/Attachment' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    delete:
+      tags: [invoices]
+      summary: Remove
+      responses:
+        '204': { description: Removed }
   /products:
     get:
       tags: [products]
@@ -1036,6 +1207,8 @@ components:
         - type: object
           properties:
             note: { type: string, nullable: true }
+            sent_at: { type: string, format: date, nullable: true }
+            sent_via: { type: string, nullable: true, enum: [mail, post, portal, other] }
             items: { type: array, items: { $ref: '#/components/schemas/Item' } }
             customer: { $ref: '#/components/schemas/Customer' }
     Summary:
@@ -1048,6 +1221,19 @@ components:
         paid_this_year: { type: number }
         draft_count: { type: integer }
         draft_gross: { type: number }
+    Attachment:
+      type: object
+      properties:
+        id: { type: integer }
+        invoice_id: { type: integer }
+        filename: { type: string }
+        mime: { type: string, example: application/pdf }
+        size: { type: integer }
+        sha256: { type: string }
+        kind: { type: string, enum: [delivery_note, order, offer, other] }
+        uploaded_by: { type: integer, nullable: true }
+        uploaded_by_name: { type: string, nullable: true }
+        created_at: { type: string }
     Event:
       type: object
       properties:

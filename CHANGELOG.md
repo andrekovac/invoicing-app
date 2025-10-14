@@ -6,6 +6,33 @@ written by hand from them once in a while.
 
 ## Unreleased
 
+## 2025
+
+### Added
+
+- attachments per invoice (delivery note, order, offer): `invoice_attachments`, `/api/v1/invoices/:id/attachments`, list and upload on the invoice view
+- invoices can be marked as sent (`sent_at`, `sent_via`): `POST/DELETE /api/v1/invoices/:id/sent`, `GET /api/v1/invoices/not-sent`, the invoice mail sets it
+- `GET /api/v1/invoices/:id/timeline`: history, payments, mails, card attempts and attachments in one list
+- paste positions from a spreadsheet into a draft (`POST /api/v1/invoices/:id/items/paste`)
+- payment extension: `PUT /api/v1/invoices/:id/due-date` with a reason
+- bulk actions `sent` and `delete` (drafts only), buttons in the invoice list
+- `npm run lint` (syntax, erasable TypeScript in v2, migration numbers), runs in CI
+
+### Changed
+
+- node 24 is required (`engines`, CI, `.nvmrc`)
+- new passwords are bcrypt hashes (`bcryptjs`), old scrypt hashes are replaced at the next login. The seed keeps scrypt (faster)
+- express 4.22.3
+- README: the quickstart is up to date (workspaces, ports, demo logins). The rest of the README is still from 2022
+
+### Fixed
+
+- download of attachments with umlauts or € in the file name
+
+### Tests
+
+- two skipped tests for what is not built yet: second reminder after 14 days, footer of the new pdf layout
+
 ## 2024
 
 ### Added
