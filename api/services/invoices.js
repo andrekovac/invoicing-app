@@ -150,6 +150,7 @@ function summary(accountId) {
   // partial payments are already in
   var partial = c.prepare("SELECT coalesce(sum(p.amount), 0) AS sum FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.account_id = ? AND i.status = 'issued'").get(accountId);
   var overdue = c.prepare("SELECT count(*) AS n, coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'issued' AND due_date < ?").get(accountId, today);
+  var overduePartial = c.prepare("SELECT coalesce(sum(p.amount), 0) AS sum FROM payments p JOIN invoices i ON i.id = p.invoice_id WHERE i.account_id = ? AND i.status = 'issued' AND i.due_date < ?").get(accountId, today);
   var paid = c.prepare("SELECT coalesce(sum(total_gross), 0) AS sum FROM invoices WHERE account_id = ? AND status = 'paid' AND substr(paid_at, 1, 4) = ?").get(accountId, today.slice(0, 4));
   var drafts = c.prepare("SELECT id, tax_rate, discount_percent FROM invoices WHERE account_id = ? AND status = 'draft'").all(accountId);
   // drafts are not in the stored totals yet when items were edited by hand, so compute them
@@ -162,7 +163,7 @@ function summary(accountId) {
     open_count: open.n,
     open_gross: money.round2(open.sum - partial.sum),
     overdue_count: overdue.n,
-    overdue_gross: money.round2(overdue.sum),
+    overdue_gross: money.round2(overdue.sum - overduePartial.sum),
     paid_this_year: money.round2(paid.sum),
     draft_count: drafts.length,
     draft_gross: money.round2(draftSum)
