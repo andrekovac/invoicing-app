@@ -19,7 +19,7 @@ export interface CardData {
         <label>Kartennummer <input name="number" [(ngModel)]="number" autocomplete="cc-number" size="22" placeholder="4242 4242 4242 4242"></label>
       </div>
       <div class="form-row">
-        <label>Gültig bis (MM/JJ) <input name="exp" [(ngModel)]="exp" autocomplete="cc-exp" size="6" placeholder="12/25"></label>
+        <label>Gültig bis (MM/JJ) <input name="exp" [(ngModel)]="exp" autocomplete="cc-exp" size="6" placeholder="12/30"></label>
         <label>CVC <input name="cvc" [(ngModel)]="cvc" autocomplete="cc-csc" size="4"></label>
       </div>
       <button type="submit" [disabled]="busy || !amount">{{ busy ? 'Bitte warten ...' : 'Jetzt ' + (amount | euro) + ' bezahlen' }}</button>
