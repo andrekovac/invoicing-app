@@ -1,6 +1,7 @@
 // recurring invoices of the demo data. Verlag Sonnenblick (Albers) prints its monthly
 // magazine at Albers from 2025 on, the contract was set up in summer 2024.
-// the copies for 2025 are made here like the job would have made them
+// the copies for 2025 are made here like the job would have made them. the contract ends
+// with the October issue
 const db = require('../db');
 const invoices = require('../services/invoices');
 const recurring = require('../services/recurring');
@@ -32,16 +33,16 @@ function sonnenblick() {
     template_invoice_id: tpl.id,
     title: 'Monatsheft Fränkisch genießen 2025',
     start_date: '2025-01-01',
-    end_date: '2025-12-31',
+    end_date: '2025-10-31',
     day_of_month: 5,
     interval_months: 1,
     payment_days: 14
   });
-  const created = recurring.runDue(ALBERS, '2025-12-31').filter(r => r.recurring_id === rec.id);
+  const created = recurring.runDue(ALBERS, '2025-10-05').filter(r => r.recurring_id === rec.id);
 
-  // Jan to Sep are paid (what was on the invoice), the last three are open
+  // Jan to Jul are paid (what was on the invoice), the last three are open
   created.forEach(function (r) {
-    if (r.date > '2025-09-30') return;
+    if (r.date > '2025-07-31') return;
     const inv = invoices.findById(r.invoice_id);
     payments.recordPayment(inv, { amount: inv.total_gross, paid_at: addDays(r.date, 12), reference: inv.number });
   });
